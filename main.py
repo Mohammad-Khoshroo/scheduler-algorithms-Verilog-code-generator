@@ -13,9 +13,41 @@ def load_input(filename: str) -> dict:
     with open(filename, "r") as file:
         return json.load(file)
 
-def build_dfg(expression: str, folder_path : str):
-    ast_root = expression_to_graph(expression)
+def ast_to_dict(node):
+    if isinstance(node, ast.AST):
+        result = {"_type": node.__class__.__name__}
+        for field in node._fields:
+            result[field] = ast_to_dict(getattr(node, field))
+        return result
+    elif isinstance(node, list):
+        return [ast_to_dict(x) for x in node]
+    else:
+        return node
 
+def build_dfg(expression: str, folder_path : str):
+    
+    ast_root = expression_to_graph(expression)
+    # root
+    # print(ast_root)          # BinOp
+
+    # left and right operands
+    # ast_root.left     - Name(id='a', ctx=Load())
+    # ast_root.right    - BinOp(...)
+
+    # operation
+    # type(ast_root.op) - <class '_ast.Add'>
+    
+    # and recursively...
+    # ast_root.right.left  , ast_root.right.right , ast_root.right.op , etc.
+    
+    with open(folder_path + "/ast_output.log", "w") as f:
+        f.write(ast.dump(ast_root, indent=4))
+    
+    ast_dict = ast_to_dict(ast_root)
+    with open(folder_path + "/ast_output.json", "w") as f:
+        json.dump(ast_dict, f, indent=4)
+    
+        
     dotv1 = visualize_graph(ast_root,version = 1)
     dotv1.attr(label="", labelloc='t', fontsize='17')  
     dotv1.render(folder_path + "/pics/DFG-V1", format='png', view=False, cleanup=True)

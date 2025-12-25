@@ -49,7 +49,9 @@ def visualize_graph(root, version = 1):
 
     node_counter = 0
     visited_identifiers = dict()
+    identifier_nodes = []
 
+    
     def add_node_and_edges(node, parent_id=None):
         nonlocal node_counter
         nonlocal visited_identifiers
@@ -76,6 +78,7 @@ def visualize_graph(root, version = 1):
             else:
                 visited_identifiers[label] = cur_node_id
                 dot.node(cur_node_id, label)
+                identifier_nodes.append(cur_node_id)
         else:
             dot.node(cur_node_id, label)
 
@@ -83,6 +86,12 @@ def visualize_graph(root, version = 1):
             dot.edge(cur_node_id, parent_id)
 
     add_node_and_edges(root)
+
+    if version == 2 and identifier_nodes:
+        with dot.subgraph() as s:
+            s.attr(rank='source')
+            for nid in identifier_nodes:
+                s.node(nid)
     return dot
 
 def visualize_scheduled_graph(root_id, schedule_info : List[ScheduledNodeInfo], version = 1):

@@ -1,0 +1,85 @@
+{
+    "_type": "BinOp",
+    "left": {
+        "_type": "BinOp",
+        "left": {
+            "_type": "BinOp",
+            "left": {
+                "_type": "Name",
+                "id": "i1",
+                "ctx": {
+                    "_type": "Load"
+                }
+            },
+            "op": {
+                "_type": "Add"
+            },
+            "right": {
+                "_type": "Name",
+                "id": "i2",
+                "ctx": {
+                    "_type": "Load"
+                }
+            }
+        },
+        "op": {
+            "_type": "Mult"
+        },
+        "right": {
+            "_type": "BinOp",
+            "left": {
+                "_type": "Name",
+                "id": "i1",
+                "ctx": {
+                    "_type": "Load"
+                }
+            },
+            "op": {
+                "_type": "Div"
+            },
+            "right": {
+                "_type": "Name",
+                "id": "i3",
+                "ctx": {
+                    "_type": "Load"
+                }
+            }
+        }
+    },
+    "op": {
+        "_type": "Add"
+    },
+    "right": {
+        "_type": "BinOp",
+        "left": {
+            "_type": "BinOp",
+            "left": {
+                "_type": "Name",
+                "id": "i2",
+                "ctx": {
+                    "_type": "Load"
+                }
+            },
+            "op": {
+                "_type": "BitAnd"
+            },
+            "right": {
+                "_type": "Name",
+                "id": "i3",
+                "ctx": {
+                    "_type": "Load"
+                }
+            }
+        },
+        "op": {
+            "_type": "Mult"
+        },
+        "right": {
+            "_type": "Name",
+            "id": "i1",
+            "ctx": {
+                "_type": "Load"
+            }
+        }
+    }
+}
