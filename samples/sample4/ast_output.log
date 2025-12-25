@@ -1,0 +1,38 @@
+BinOp(
+    left=BinOp(
+        left=BinOp(
+            left=BinOp(
+                left=BinOp(
+                    left=Compare(
+                        left=Name(id='a', ctx=Load()),
+                        ops=[
+                            Eq()],
+                        comparators=[
+                            Constant(value=5)]),
+                    op=Div(),
+                    right=UnaryOp(
+                        op=Invert(),
+                        operand=Name(id='x', ctx=Load()))),
+                op=Add(),
+                right=BinOp(
+                    left=Name(id='a', ctx=Load()),
+                    op=Mult(),
+                    right=Name(id='b', ctx=Load()))),
+            op=Add(),
+            right=BinOp(
+                left=BinOp(
+                    left=Name(id='c', ctx=Load()),
+                    op=LShift(),
+                    right=Constant(value=4)),
+                op=Div(),
+                right=Name(id='d', ctx=Load()))),
+        op=Sub(),
+        right=BinOp(
+            left=BinOp(
+                left=Name(id='c', ctx=Load()),
+                op=BitAnd(),
+                right=Name(id='f', ctx=Load())),
+            op=BitOr(),
+            right=Name(id='g', ctx=Load()))),
+    op=BitXor(),
+    right=Name(id='a', ctx=Load()))

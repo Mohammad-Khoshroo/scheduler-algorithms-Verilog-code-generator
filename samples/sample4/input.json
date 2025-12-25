@@ -1,0 +1,12 @@
+{
+  "Expression": "a * b + c / d - ((c & f) | g) ^ a",
+  "Algorithm": "MinResourceLatencyConstrained",
+  "Config": {
+    "MaxTime": 10,
+    "Resources": {
+      "ALU": 1,
+      "MUL": 1,
+      "LOG": 1
+    }
+  }
+}

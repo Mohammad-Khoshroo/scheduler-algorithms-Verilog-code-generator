@@ -135,7 +135,21 @@ class GraphBuilder:
                     visited_identifiers[new_node.name] = new_node
                     self.all_nodes.append(new_node)
                     return new_node
+            
+            elif isinstance(node, ast.Constant):
+                if node.value in visited_identifiers.keys():
+                    existing_node = visited_identifiers[node.value]
+                    existing_node.depth = max(depth, existing_node.depth)
+                    return existing_node
+                else:
+                    new_node = IdentifierNode(name=node.value, depth=depth, id=node_id)
+                    node_id += 1
+                    visited_identifiers[new_node.name] = new_node
+                    self.all_nodes.append(new_node)
+                    return new_node
+            
             else:
+                print(node)
                 print("Unknown Node")
 
         return recursively_build_DFG(tree, 0)
