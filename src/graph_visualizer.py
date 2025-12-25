@@ -4,22 +4,44 @@ from .scheduler import ScheduledNodeInfo
 from .dfg_creator import *
 
 def determine_operation_type(op) -> str:
-    if isinstance(op, (ast.Add, ast.Sub)):
-        return "ALU"
-    elif isinstance(op, (ast.Mult, ast.Div, ast.Mod)):
-        return "MUL"
-    elif isinstance(op, (ast.BitAnd, ast.BitOr, ast.BitXor)):
-        return "LOG"
-    else:
-        return "?"
+    symbols = {
+        ast.Add: "+", ast.Sub: "-", ast.Mult: "*", ast.Div: "/",
+        ast.FloorDiv: "//", ast.Mod: "%", ast.Pow: "**",
 
-def parse_expression(expression):
-    try:
-        tree = ast.parse(expression, mode='eval').body
-        return tree
-    except SyntaxError as e:
-        print(f"Error parsing expression: {e}")
-        return
+        ast.LShift: "<<", ast.RShift: ">>",
+
+        ast.BitAnd: "&", ast.BitOr: "|", ast.BitXor: "^",
+
+        ast.Invert: "~", ast.Not: "not", ast.UAdd: "+", ast.USub: "-",
+
+        ast.Eq: "==", ast.NotEq: "!=", ast.Lt: "<", ast.LtE: "<=",
+        ast.Gt: ">", ast.GtE: ">=",
+    }
+
+    sym = symbols.get(type(op), "?")
+
+    if isinstance(op, (ast.Add, ast.Sub)):
+        return f"ALU({sym})"
+
+    elif isinstance(op, (ast.Mult, ast.Div, ast.FloorDiv, ast.Mod)):
+        return f"mult({sym})"
+
+    elif isinstance(op, (ast.LShift, ast.RShift)):
+        return f"shift({sym})"
+
+    elif isinstance(op, (ast.BitAnd, ast.BitOr, ast.BitXor)):
+        return f"logic({sym})"
+
+    elif isinstance(op, (ast.Invert, ast.Not, ast.UAdd, ast.USub)):
+        return f"unary({sym})"
+
+    elif isinstance(op, (ast.Eq, ast.NotEq, ast.Lt, ast.LtE,
+                          ast.Gt, ast.GtE)):
+        return f"cmp({sym})"
+
+    else:
+        return f"?({sym})"
+
 
 def visualize_graph(root):
     dot = graphviz.Digraph(comment='Abstract Syntax Tree')
@@ -35,13 +57,13 @@ def visualize_graph(root):
         node_counter += 1
 
         if isinstance(node, ast.BinOp):
-            label = f"op ({determine_operation_type(node.op)})"
+            label = f"{determine_operation_type(node.op)}"
             add_node_and_edges(node.left, cur_node_id)
             add_node_and_edges(node.right, cur_node_id)
         elif isinstance(node, ast.Name):
-            label = f"id ({node.id})"
+            label = f"{node.id}"
         elif isinstance(node, ast.Constant):
-            label = f"const ({node.value})"
+            label = f"{node.value}"
         else:
             label = type(node).__name__
 
@@ -108,6 +130,14 @@ def visualize_scheduled_graph(root_id, schedule_info : List[ScheduledNodeInfo]):
     root_sched = find_node_by_id(root_id)
     add_node_and_edges(node_sched=root_sched, node=root_sched.node)
     return dot
+
+def parse_expression(expression):
+    try:
+        tree = ast.parse(expression, mode='eval').body
+        return tree
+    except SyntaxError as e:
+        print(f"Error parsing expression: {e}")
+        return
 
 def expression_to_graph(expression):
     return parse_expression(expression)

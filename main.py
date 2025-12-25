@@ -18,7 +18,7 @@ def build_dfg(expression: str, folder_path : str):
 
     dot = visualize_graph(ast_root)
     dot.attr(label="", labelloc='t', fontsize='17')  
-    dot.render(folder_path + "/pics/DFG", format='png', view=False, cleanup=True)
+    dot.render(folder_path + "/pics/DFG-V2", format='png', view=False, cleanup=True)
 
     builder = GraphBuilder()
     return builder.build(ast_root)
@@ -73,7 +73,7 @@ def run_test(folder_path : str):
     generate_verilog(folder_path=folder_path, schedule_info=schedule_info)
 
 def main():
-    if len(sys.argv) > 1:
+    if len(sys.argv) == 2:
         run_test(folder_path=sys.argv[1])
     else:
         print("Please provide the input folder path.")
