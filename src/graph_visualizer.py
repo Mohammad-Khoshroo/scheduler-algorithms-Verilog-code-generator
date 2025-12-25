@@ -43,7 +43,7 @@ def determine_operation_type(op) -> str:
         return f"?({sym})"
 
 
-def visualize_graph(root):
+def visualize_graph(root, version = 1):
     dot = graphviz.Digraph(comment='Abstract Syntax Tree')
     dot.attr(rankdir='TB', size='8,8')
 
@@ -60,14 +60,17 @@ def visualize_graph(root):
             label = f"{determine_operation_type(node.op)}"
             add_node_and_edges(node.left, cur_node_id)
             add_node_and_edges(node.right, cur_node_id)
+        
         elif isinstance(node, ast.Name):
             label = f"{node.id}"
+        
         elif isinstance(node, ast.Constant):
-            label = f"{node.value}"
+            label = f"c={node.value}"
+        
         else:
             label = type(node).__name__
 
-        if label.startswith("id"):
+        if version == 2 and not label.startswith("c=") and not label.startswith("ALU") and not label.startswith("mult") and not label.startswith("shift") and not label.startswith("logic") and not label.startswith("unary") and not label.startswith("cmp"):
             if label in visited_identifiers.keys():
                 cur_node_id = visited_identifiers[label]
             else:
@@ -82,7 +85,7 @@ def visualize_graph(root):
     add_node_and_edges(root)
     return dot
 
-def visualize_scheduled_graph(root_id, schedule_info : List[ScheduledNodeInfo]):
+def visualize_scheduled_graph(root_id, schedule_info : List[ScheduledNodeInfo], version = 1):
     
     def find_node_by_id(id) -> ScheduledNodeInfo:
         for sched_node in schedule_info:

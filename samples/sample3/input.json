@@ -1,5 +1,5 @@
 {
-  "Expression": "a * b + c / d - (e & f) | g",
+  "Expression": "a * b + c / d - ((c & f) | g) ^ a",
   "Algorithm": "MinResourceLatencyConstrained",
   "Config": {
     "MaxTime": 10,

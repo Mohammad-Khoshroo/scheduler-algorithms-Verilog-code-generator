@@ -16,25 +16,36 @@ def load_input(filename: str) -> dict:
 def build_dfg(expression: str, folder_path : str):
     ast_root = expression_to_graph(expression)
 
-    dot = visualize_graph(ast_root)
-    dot.attr(label="", labelloc='t', fontsize='17')  
-    dot.render(folder_path + "/pics/DFG-V2", format='png', view=False, cleanup=True)
+    dotv1 = visualize_graph(ast_root,version = 1)
+    dotv1.attr(label="", labelloc='t', fontsize='17')  
+    dotv1.render(folder_path + "/pics/DFG-V1", format='png', view=False, cleanup=True)
+
+    dotv2 = visualize_graph(ast_root,version = 2)
+    dotv2.attr(label="", labelloc='t', fontsize='17')  
+    dotv2.render(folder_path + "/pics/DFG-V2", format='png', view=False, cleanup=True)
 
     builder = GraphBuilder()
     return builder.build(ast_root)
 
 
 def schedule_dfg(dfg_root, algorithm : str, config : dict, folder_path : str) -> list:
+    
     if (algorithm == MinResourceAlgorithm):
         scheduler = MinResourceScheduler(dfg_root=dfg_root, numof_resources=config["Resources"], max_time=config["MaxTime"])
+    
     else:
         scheduler = MinLatencyScheduler(dfg_root=dfg_root, numof_resources=config["Resources"])    
+    
     scheduler.schedule()
     schedule_info = scheduler.get_scheduling_info()
 
-    dot = visualize_scheduled_graph(root_id=dfg_root.id, schedule_info=schedule_info)
-    dot.attr(label="", labelloc='t', fontsize='17')  
-    dot.render(folder_path + "/pics/ScheduledDFG", format='png', view=False, cleanup=True)
+    dotv1 = visualize_scheduled_graph(root_id=dfg_root.id, schedule_info=schedule_info, version = 1)
+    dotv1.attr(label="", labelloc='t', fontsize='17')  
+    dotv1.render(folder_path + "/pics/ScheduledDFG-V1", format='png', view=False, cleanup=True)
+    
+    dotv2 = visualize_scheduled_graph(root_id=dfg_root.id, schedule_info=schedule_info, version = 2)
+    dotv2.attr(label="", labelloc='t', fontsize='17')  
+    dotv2.render(folder_path + "/pics/ScheduledDFG-V2", format='png', view=False, cleanup=True)
 
     return schedule_info
 

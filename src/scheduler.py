@@ -87,7 +87,9 @@ class MinLatencyScheduler(ListScheduler):
 
     
 class MinResourceScheduler(ListScheduler):
+    
     def __init__(self, dfg_root : BaseNode, numof_resources : dict, max_time : int):
+        
         super().__init__(dfg_root=dfg_root, numof_reources=numof_resources)
         self.max_time = max_time
         self.latest_time = self.find_latest_times()
