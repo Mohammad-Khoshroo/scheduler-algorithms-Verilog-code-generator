@@ -1,0 +1,37 @@
+{
+    "2": {
+        "clk_cycle": 1,
+        "resource_type": "MUL",
+        "resource_num": 0
+    },
+    "5": {
+        "clk_cycle": 2,
+        "resource_type": "div",
+        "resource_num": 0
+    },
+    "6": {
+        "clk_cycle": 3,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "8": {
+        "clk_cycle": 1,
+        "resource_type": "LOG",
+        "resource_num": 0
+    },
+    "10": {
+        "clk_cycle": 2,
+        "resource_type": "LOG",
+        "resource_num": 0
+    },
+    "11": {
+        "clk_cycle": 4,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "12": {
+        "clk_cycle": 5,
+        "resource_type": "LOG",
+        "resource_num": 0
+    }
+}

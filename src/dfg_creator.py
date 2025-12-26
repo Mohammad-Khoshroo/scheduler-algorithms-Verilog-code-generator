@@ -2,23 +2,48 @@ import ast
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
-OP_TYPES = ["ALU", "mult", "shift", "logic", "unary", "cmp" , "pow"]
+OP_TYPES = ["ALU", "MUL", "div", "shift", "LOG", "pow"]
 
 op_map = {
     ast.Add: "ALU", ast.Sub: "ALU",
-    ast.Mult: "mult", ast.Div: "mult", ast.FloorDiv: "mult", ast.Mod: "mult",
+    ast.Mult: "MUL", ast.Div: "div", ast.FloorDiv: "div", ast.Mod: "div",
     ast.Pow: "pow",
     ast.LShift: "shift", ast.RShift: "shift",
-    ast.BitAnd: "logic", ast.BitOr: "logic", ast.BitXor: "logic",
-    ast.Invert: "unary", ast.Not: "unary", ast.UAdd: "unary", ast.USub: "unary",
-    ast.Eq: "cmp", ast.NotEq: "cmp", ast.Lt: "cmp", ast.LtE: "cmp", ast.Gt: "cmp", ast.GtE: "cmp",
+    ast.BitAnd: "LOG", ast.BitOr: "LOG", ast.BitXor: "LOG",
+    ast.Invert: "LOG", ast.UAdd: "LOG", ast.USub: "LOG",
+    ast.Eq: "LOG", ast.NotEq: "LOG", ast.Lt: "ALU", ast.LtE: "ALU", ast.Gt: "ALU", ast.GtE: "ALU",
 }
 
+symbols = {
+        ast.Add: "+",
+        ast.Sub: "—",
+        ast.Mult: "*",
+        ast.Div: "/",
+        ast.FloorDiv: "//",
+        ast.Mod: "%",
+        ast.Pow: "**",
+        ast.LShift: "<<",
+        ast.RShift: ">>",
+        ast.BitAnd: "&",
+        ast.BitOr: "|",
+        ast.BitXor: "^",
+        ast.Invert: "~",
+        ast.UAdd: "+",
+        ast.USub: "-",
+        ast.Eq: "==",
+        ast.NotEq: "!=",
+        ast.Lt: "<",
+        ast.LtE: "<=",
+        ast.Gt: ">",
+        ast.GtE: ">=",
+    }
+
 class BaseNode(ABC):
-    def __init__(self, depth : int, id : int):
+    def __init__(self, depth : int, id : int, name : str):
         self.operands: List[Optional['BaseNode']] = []
         self.depth = depth
         self.id = id
+        self.name = name
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -26,16 +51,15 @@ class BaseNode(ABC):
 
 class IdentifierNode(BaseNode):
     def __init__(self, name: str, depth : int, id : int):
-        super().__init__(depth=depth, id=id)
-        self.name = name
+        super().__init__(depth=depth, id=id,name=name)
         self.operands = [None, None]
 
     def __repr__(self) -> str:
         return f"[id={self.id}] {self.name} (depth={self.depth})"
 
 class OperatorNode(BaseNode):
-    def __init__(self, op_type: str, op: ast.operator | ast.unaryop | ast.cmpop, left_operand: BaseNode, right_operand: Optional[BaseNode], depth : int, id : int):
-        super().__init__(depth=depth, id=id)
+    def __init__(self, op_type: str, op: ast.operator | ast.unaryop | ast.cmpop, left_operand: BaseNode, right_operand: Optional[BaseNode], depth : int, id : int, name :str):
+        super().__init__(depth=depth, id=id, name=name)
         if op_type not in op_map.values():
             raise ValueError(f"op_type must be one of {list(op_map.values())}")
 
@@ -54,6 +78,9 @@ class OperatorNode(BaseNode):
         left_name = get_operand_name(self.operands[0])
         right_name = get_operand_name(self.operands[1]) if self.operands[1] else ""
         return f"{self.op_type} ['{left_name}', '{right_name}'] (depth={self.depth})"
+  
+def resource_allocator(node : OperatorNode) -> str:
+    return "MUL" if (node.op_type == "div") else node.op_type
     
 class GraphBuilder:
     def __init__(self):
@@ -81,7 +108,8 @@ class GraphBuilder:
                     left_operand=   lop,
                     right_operand=  rop,
                     depth=          depth,
-                    id=             node_id
+                    id=             node_id,
+                    name=           symbols[type(node.op)]
                 )
                 
                 node_id += 1        
@@ -96,7 +124,8 @@ class GraphBuilder:
                     left_operand=   opn,
                     right_operand=  None,
                     depth=          depth,
-                    id=             node_id
+                    id=             node_id,
+                    name=           symbols[type(node.op)]
                 )
                 node_id += 1
                 self.all_nodes.append(new_node)
@@ -115,7 +144,8 @@ class GraphBuilder:
                         left_operand=   current_node,
                         right_operand=  rop,
                         depth=          depth,
-                        id=             node_id
+                        id=             node_id,
+                        name=           symbols[type(node.op)]
                     )
                     
                     node_id += 1

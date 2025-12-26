@@ -3,7 +3,7 @@ import sys
 import json
 from pathlib import Path
 from src.dfg_creator import GraphBuilder
-from src.graph_visualizer import expression_to_graph, visualize_graph, visualize_scheduled_graph
+from src.graph_visualizer import expression_to_graph, visualize_graph, visualize_scheduled_graph,visualize_scheduled_graph_ranked 
 from src.scheduler import MinLatencyScheduler, MinResourceScheduler, ScheduledNodeInfo
 
 MinResourceAlgorithm = "MinResourceLatencyConstrained"
@@ -65,8 +65,11 @@ def schedule_dfg(dfg_root, algorithm : str, config : dict, folder_path : str) ->
     if (algorithm == MinResourceAlgorithm):
         scheduler = MinResourceScheduler(dfg_root=dfg_root, numof_resources=config["Resources"], max_time=config["MaxTime"])
     
-    else:
+    elif (algorithm == MinlatencyAlgorithm):
         scheduler = MinLatencyScheduler(dfg_root=dfg_root, numof_resources=config["Resources"])    
+            
+    else:
+        raise ValueError(f"Unknown scheduling algorithm: {algorithm}")
     
     scheduler.schedule()
     schedule_info = scheduler.get_scheduling_info()
@@ -79,16 +82,25 @@ def schedule_dfg(dfg_root, algorithm : str, config : dict, folder_path : str) ->
     dotv2.attr(label="", labelloc='t', fontsize='17')  
     dotv2.render(folder_path + "/pics/ScheduledDFG-V2", format='png', view=False, cleanup=True)
 
+    dotv1 = visualize_scheduled_graph_ranked(root_id=dfg_root.id, schedule_info=schedule_info, version = 1)
+    dotv1.attr(label="", labelloc='t', fontsize='17')  
+    dotv1.render(folder_path + "/pics/RankedScheduledDFG-V1", format='png', view=False, cleanup=True)
+    
+    dotv2 = visualize_scheduled_graph_ranked(root_id=dfg_root.id, schedule_info=schedule_info, version = 2)
+    dotv2.attr(label="", labelloc='t', fontsize='17')  
+    dotv2.render(folder_path + "/pics/RankedScheduledDFG-V2", format='png', view=False, cleanup=True)
+
+
     return schedule_info
 
-'''
-    Call your VerilogGenerator class here.
-    Save the reuslting code files to:
-        - "{folder_path}/codes/datapath.v"
-        - "{folder_path}/codes/controller.v"
-'''
-# TODO
 def generate_verilog(folder_path : str, schedule_info : list[ScheduledNodeInfo]):
+    '''
+        Call your VerilogGenerator class here.
+        Save the reuslting code files to:
+            - "{folder_path}/codes/datapath.v"
+            - "{folder_path}/codes/controller.v"
+    '''
+    # TODO
     pass
 
 def save_result(folder_path : str, schedule_info : list[ScheduledNodeInfo]):
@@ -96,7 +108,7 @@ def save_result(folder_path : str, schedule_info : list[ScheduledNodeInfo]):
     with open(folder_path + "/output.json", "w") as file:
         for node_info in schedule_info:
             json_output[node_info.node.id] = {
-                "clk": node_info.scheduled_time,
+                "clk_cycle": node_info.scheduled_time,
                 "resource_type": node_info.node.op_type,
                 "resource_num": node_info.resource_num
             }
