@@ -35,9 +35,12 @@ def determine_operation_type(op) -> str:
     if isinstance(op, (ast.Add, ast.Sub)):
         return f"ALU({sym})"
 
-    elif isinstance(op, (ast.Mult, ast.Div, ast.FloorDiv, ast.Mod)):
+    elif isinstance(op, (ast.Mult)):
         return f"mult({sym})"
-
+    
+    elif isinstance(op, (ast.Div, ast.FloorDiv, ast.Mod)):
+        return f"div({sym})"
+    
     elif isinstance(op, (ast.LShift, ast.RShift)):
         return f"shift({sym})"
 
@@ -45,7 +48,7 @@ def determine_operation_type(op) -> str:
         return f"logic({sym})"
 
     elif isinstance(op, (ast.Invert, ast.Not, ast.UAdd, ast.USub)):
-        return f"unaryLogic({sym})"
+        return f"ULogic({sym})"
 
     elif isinstance(op, (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
         return f"cmp({sym})"
@@ -99,9 +102,10 @@ def visualize_graph(root, version=1):
             and not label.startswith("c=")
             and not label.startswith("ALU")
             and not label.startswith("mult")
+            and not label.startswith("div")
             and not label.startswith("shift")
             and not label.startswith("logic")
-            and not label.startswith("unary")
+            and not label.startswith("ULogic")
             and not label.startswith("cmp")
         ):
             if label in visited_identifiers.keys():
@@ -210,10 +214,7 @@ def visualize_scheduled_graph(
 
     return dot
 
-
-def visualize_scheduled_graph_ranked(
-    root_id, schedule_info: list, version=1
-):
+def visualize_scheduled_graph_ranked(root_id, schedule_info: list, version=1):
     def find_node_by_id(id):
         for sched_node in schedule_info:
             if sched_node.node.id == id:
@@ -226,15 +227,16 @@ def visualize_scheduled_graph_ranked(
     
     node_counter = 0
     visited_identifiers = dict()
-    
     layers = defaultdict(list)
+    edges = []
+    node_labels = {}
 
-    def add_node_and_edges(
-        node_sched, node, parent_id=None
-    ):
+    def add_node_and_edges(node_sched, node, parent_id=None):
         nonlocal node_counter
         nonlocal visited_identifiers
         nonlocal layers
+        nonlocal edges
+        nonlocal node_labels
 
         label = ""
         cycle_key = None 
@@ -249,7 +251,6 @@ def visualize_scheduled_graph_ranked(
                 label = type(node).__name__
         else:
             cycle_key = node_sched.scheduled_time
-            
             if hasattr(node, 'op_type'):
                 label = (
                     f"{node.name}\ntime_cycle: {node_sched.scheduled_time}\n"
@@ -265,15 +266,13 @@ def visualize_scheduled_graph_ranked(
 
         if version == 2:
             should_merge = True
-            
-            lower_label = label.lower()
             if (
                 label.startswith("const=")
-                or lower_label.startswith("alu")
-                or lower_label.startswith("mult")
-                or lower_label.startswith("div")
-                or lower_label.startswith("shift")
-                or lower_label.startswith("logic")
+                or label.startswith("ALU")
+                or label.startswith("mult")
+                or label.startswith("div")
+                or label.startswith("shift")
+                or label.startswith("logic")
             ):
                 should_merge = False
 
@@ -293,11 +292,11 @@ def visualize_scheduled_graph_ranked(
             node_counter += 1
 
         if not is_existing_node:
-            dot.node(cur_node_id, label)
+            node_labels[cur_node_id] = label
             layers[cycle_key].append(cur_node_id)
         
         if parent_id is not None:
-            dot.edge(cur_node_id, parent_id)
+            edges.append((cur_node_id, parent_id))
 
         if node_sched is not None and hasattr(node, 'operands'):
             for child_node in node.operands:
@@ -315,7 +314,8 @@ def visualize_scheduled_graph_ranked(
             s.attr(style='invis')
             s.attr(rank='source')
             for nid in layers["source"]:
-                s.node(nid)
+                if nid in node_labels:
+                    s.node(nid, label=node_labels[nid])
 
     sorted_cycles = sorted([k for k in layers.keys() if k != "source"])
     
@@ -323,7 +323,24 @@ def visualize_scheduled_graph_ranked(
         with dot.subgraph(name=f"cycle_{cycle}") as s:
             s.attr(rank='same')
             for nid in layers[cycle]:
-                s.node(nid)
+                if nid in node_labels:
+                    s.node(nid, label=node_labels[nid])
+
+    if "source" in layers and len(layers["source"]) > 0 and len(sorted_cycles) > 0:
+         src_node = layers["source"][0]
+         dst_node = layers[sorted_cycles[0]][0]
+         dot.edge(src_node, dst_node, style="invis", weight="10")
+
+    for i in range(len(sorted_cycles) - 1):
+        c1 = sorted_cycles[i]
+        c2 = sorted_cycles[i+1]
+        if layers[c1] and layers[c2]:
+            node_a = layers[c1][0]
+            node_b = layers[c2][0]
+            dot.edge(node_a, node_b, style="invis", weight="10")
+
+    for src, dst in edges:
+        dot.edge(src, dst)
 
     return dot
 

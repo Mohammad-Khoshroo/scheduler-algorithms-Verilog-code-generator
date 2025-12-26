@@ -5,6 +5,7 @@ from pathlib import Path
 from src.dfg_creator import GraphBuilder
 from src.graph_visualizer import expression_to_graph, visualize_graph, visualize_scheduled_graph,visualize_scheduled_graph_ranked 
 from src.scheduler import MinLatencyScheduler, MinResourceScheduler, ScheduledNodeInfo
+from src.code_generator import generate_verilog
 
 MinResourceAlgorithm = "MinResourceLatencyConstrained"
 MinlatencyAlgorithm = "MinLatencyResourceContrained"
@@ -67,7 +68,7 @@ def build_dfg(expression: str, folder_path : str):
 def schedule_dfg(dfg_root, algorithm : str, config : dict, folder_path : str) -> list:
     
     if (algorithm == MinResourceAlgorithm):
-        scheduler = MinResourceScheduler(dfg_root=dfg_root, numof_resources=config["Resources"], max_time=config["MaxTime"])
+        scheduler = MinResourceScheduler(dfg_root=dfg_root, max_time=config["MaxTime"], numof_resources=None)
     
     elif (algorithm == MinlatencyAlgorithm):
         scheduler = MinLatencyScheduler(dfg_root=dfg_root, numof_resources=config["Resources"])    
@@ -98,16 +99,6 @@ def schedule_dfg(dfg_root, algorithm : str, config : dict, folder_path : str) ->
     print("Visualize Rank schedule done")
 
     return schedule_info
-
-def generate_verilog(folder_path : str, schedule_info : list[ScheduledNodeInfo]):
-    '''
-        Call your VerilogGenerator class here.
-        Save the reuslting code files to:
-            - "{folder_path}/codes/datapath.v"
-            - "{folder_path}/codes/controller.v"
-    '''
-    # TODO
-    pass
 
 def save_result(folder_path : str, schedule_info : list[ScheduledNodeInfo]):
     json_output = {}

@@ -10,7 +10,8 @@ op_map = {
     ast.Pow: "pow",
     ast.LShift: "shift", ast.RShift: "shift",
     ast.BitAnd: "logic", ast.BitOr: "logic", ast.BitXor: "logic",
-    ast.Invert: "logic", ast.UAdd: "logic", ast.USub: "logic",
+    ast.Invert: "logic", 
+    ast.USub: "َALU", #-x = (~x) + 1
     ast.Eq: "logic", ast.NotEq: "logic", ast.Lt: "ALU", ast.LtE: "ALU", ast.Gt: "ALU", ast.GtE: "ALU",
 }
 
@@ -28,7 +29,6 @@ symbols = {
         ast.BitOr: "|",
         ast.BitXor: "^",
         ast.Invert: "~",
-        ast.UAdd: "+",
         ast.USub: "-",
         ast.Eq: "==",
         ast.NotEq: "!=",
@@ -50,13 +50,16 @@ class BaseNode(ABC):
         pass
 
 class IdentifierNode(BaseNode):
-    def __init__(self, name: str, depth : int, id : int):
-        super().__init__(depth=depth, id=id,name=name)
+    def __init__(self, name: str, depth: int, id: int, value=None):
+        super().__init__(depth=depth, id=id, name=str(name))
         self.operands = [None, None]
+        self.value = value
 
     def __repr__(self) -> str:
-        return f"[id={self.id}] {self.name} (depth={self.depth})"
-
+        if self.value is not None:
+            return f"[id={self.id}] CONST:{self.value}"
+        return f"[id={self.id}] {self.name}"
+    
 class OperatorNode(BaseNode):
     def __init__(self, op_type: str, op: ast.operator | ast.unaryop | ast.cmpop, left_operand: BaseNode, right_operand: Optional[BaseNode], depth : int, id : int, name :str):
         super().__init__(depth=depth, id=id, name=name)
@@ -172,12 +175,16 @@ class GraphBuilder:
                     existing_node.depth = max(depth, existing_node.depth)
                     return existing_node
                 else:
-                    new_node = IdentifierNode(name=node.value, depth=depth, id=node_id)
+                    new_node = IdentifierNode(
+                        name=str(node.value),
+                        depth=depth, 
+                        id=node_id, 
+                        value=node.value
+                    )
                     node_id += 1
-                    visited_identifiers[new_node.name] = new_node
+                    visited_identifiers[node.value] = new_node
                     self.all_nodes.append(new_node)
                     return new_node
-            
             else:
                 print(node)
                 print("Unknown Node")

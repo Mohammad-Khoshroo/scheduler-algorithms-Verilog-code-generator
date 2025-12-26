@@ -2,11 +2,11 @@
   "Expression": "(i1 + i2) * (i1 / i3) + (i2 & i3) * i1",
   "Algorithm": "MinResourceLatencyConstrained",
   "Config": {
-    "MaxTime": 10,
+    "MaxTime": 3,
     "Resources": {
       "ALU": 1,
-      "MUL": 1,
-      "LOG": 1
+      "mult": 1,
+      "logic": 1
     }
   }
 }

@@ -2,7 +2,7 @@
   "Expression": "((i1 - i2) / ((i2 + i3) - (i3 | i1))) + ((i3 / i2) + (i1 - (i2 & i3)))",
   "Algorithm": "MinResourceLatencyConstrained",
   "Config": {
-    "MaxTime": 10,
+    "MaxTime": 4,
     "Resources": {
       "ALU": 1,
       "MUL": 1,
