@@ -56,7 +56,11 @@ def build_dfg(expression: str, folder_path : str):
     dotv2.attr(label="", labelloc='t', fontsize='17')  
     dotv2.render(folder_path + "/pics/DFG-V2", format='png', view=False, cleanup=True)
 
+    print("Visulization Done")
+    
     builder = GraphBuilder()
+    
+    print("Build Done")
     return builder.build(ast_root)
 
 
@@ -74,6 +78,7 @@ def schedule_dfg(dfg_root, algorithm : str, config : dict, folder_path : str) ->
     scheduler.schedule()
     schedule_info = scheduler.get_scheduling_info()
 
+    print("schedule Done")
     dotv1 = visualize_scheduled_graph(root_id=dfg_root.id, schedule_info=schedule_info, version = 1)
     dotv1.attr(label="", labelloc='t', fontsize='17')  
     dotv1.render(folder_path + "/pics/ScheduledDFG-V1", format='png', view=False, cleanup=True)
@@ -82,6 +87,7 @@ def schedule_dfg(dfg_root, algorithm : str, config : dict, folder_path : str) ->
     dotv2.attr(label="", labelloc='t', fontsize='17')  
     dotv2.render(folder_path + "/pics/ScheduledDFG-V2", format='png', view=False, cleanup=True)
 
+    print("Visualize schedule Done")
     dotv1 = visualize_scheduled_graph_ranked(root_id=dfg_root.id, schedule_info=schedule_info, version = 1)
     dotv1.attr(label="", labelloc='t', fontsize='17')  
     dotv1.render(folder_path + "/pics/RankedScheduledDFG-V1", format='png', view=False, cleanup=True)
@@ -89,7 +95,7 @@ def schedule_dfg(dfg_root, algorithm : str, config : dict, folder_path : str) ->
     dotv2 = visualize_scheduled_graph_ranked(root_id=dfg_root.id, schedule_info=schedule_info, version = 2)
     dotv2.attr(label="", labelloc='t', fontsize='17')  
     dotv2.render(folder_path + "/pics/RankedScheduledDFG-V2", format='png', view=False, cleanup=True)
-
+    print("Visualize Rank schedule done")
 
     return schedule_info
 

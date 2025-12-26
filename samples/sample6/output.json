@@ -6,12 +6,12 @@
     },
     "4": {
         "clk_cycle": 1,
-        "resource_type": "MUL",
+        "resource_type": "mult",
         "resource_num": 0
     },
     "5": {
         "clk_cycle": 1,
-        "resource_type": "LOG",
+        "resource_type": "logic",
         "resource_num": 1
     },
     "6": {
@@ -31,7 +31,7 @@
     },
     "9": {
         "clk_cycle": 1,
-        "resource_type": "LOG",
+        "resource_type": "logic",
         "resource_num": 0
     },
     "10": {

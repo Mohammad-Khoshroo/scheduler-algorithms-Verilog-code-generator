@@ -2,16 +2,16 @@ import ast
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
-OP_TYPES = ["ALU", "MUL", "div", "shift", "LOG", "pow"]
+OP_TYPES = ["ALU", "mult", "shift", "logic", "pow"]
 
 op_map = {
     ast.Add: "ALU", ast.Sub: "ALU",
-    ast.Mult: "MUL", ast.Div: "div", ast.FloorDiv: "div", ast.Mod: "div",
+    ast.Mult: "mult", ast.Div: "mult", ast.FloorDiv: "mult", ast.Mod: "mult",
     ast.Pow: "pow",
     ast.LShift: "shift", ast.RShift: "shift",
-    ast.BitAnd: "LOG", ast.BitOr: "LOG", ast.BitXor: "LOG",
-    ast.Invert: "LOG", ast.UAdd: "LOG", ast.USub: "LOG",
-    ast.Eq: "LOG", ast.NotEq: "LOG", ast.Lt: "ALU", ast.LtE: "ALU", ast.Gt: "ALU", ast.GtE: "ALU",
+    ast.BitAnd: "logic", ast.BitOr: "logic", ast.BitXor: "logic",
+    ast.Invert: "logic", ast.UAdd: "logic", ast.USub: "logic",
+    ast.Eq: "logic", ast.NotEq: "logic", ast.Lt: "ALU", ast.LtE: "ALU", ast.Gt: "ALU", ast.GtE: "ALU",
 }
 
 symbols = {
@@ -80,7 +80,7 @@ class OperatorNode(BaseNode):
         return f"{self.op_type} ['{left_name}', '{right_name}'] (depth={self.depth})"
   
 def resource_allocator(node : OperatorNode) -> str:
-    return "MUL" if (node.op_type == "div") else node.op_type
+    return "mult" if (node.op_type == "mult") else node.op_type
     
 class GraphBuilder:
     def __init__(self):
