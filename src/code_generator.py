@@ -1,10 +1,8 @@
 import os
 import ast
-from collections import defaultdict
 from src.scheduler import ScheduledNodeInfo
-from dfg_creator import BaseNode , OperatorNode, IdentifierNode
 class VerilogGenerator:
-    
+     
     def _get_reg_name(self, node_id):
         if node_id not in self.node_map:
             return "unknown"
@@ -27,7 +25,7 @@ class VerilogGenerator:
         elif type(operand).__name__ == "OperatorNode":
             return self._get_reg_name(operand.id)
         return "32'd0"
-
+            
     def _build_mux_tables(self):
         
         for resource_name, nodes in self.resources.items():
@@ -41,20 +39,46 @@ class VerilogGenerator:
                         sources.add(src)
                 
                 for idx, src in enumerate(sources):
+                    if resource_name not in self.mux_tables:
+                        self.mux_tables[resource_name] = {}
+                    if op_idx not in  self.mux_tables[resource_name] :
+                        self.mux_tables[resource_name][op_idx] = {}
+                    if src not in self.mux_tables[resource_name][op_idx]:
+                        self.mux_tables[resource_name][op_idx][src] = ""     
                     self.mux_tables[resource_name][op_idx][src] = idx
 
-
+    def _build_resources_start_duration_table(self):
+        
+        # RSD = Resource (Start,Duration) for each result which we need it Table  
+        self.rsd_table : dict[str:list[(int,int)]] = {}
+        
+        for res in sorted(self.resources.keys()):
+            self.rsd_table[res] = []
+       
+        for _ , node_info in self.node_map.items():
+            lop_info = None
+            rop_info = None
+            if node_info.node.operands[0].id  in self.node_map.keys(): 
+                lop_info = self.node_map[node_info.node.operands[0].id]
+                self.rsd_table[lop_info.resource].append((lop_info.scheduled_time,node_info.scheduled_time))
+            if node_info.node.operands[1].id  in self.node_map.keys(): 
+                rop_info = self.node_map[node_info.node.operands[1].id]
+                self.rsd_table[rop_info.resource].append((rop_info.scheduled_time,node_info.scheduled_time))
+         
+        print(self.rsd_table)           
+        
     def __init__(self, schedule_info: list[ScheduledNodeInfo]):
         
         self.schedule_info = sorted(schedule_info, key=lambda x: x.node.id)
         self.node_map = {info.node.id: info for info in self.schedule_info}
-        
         self.inputs = set()
         self._collect_inputs()
         
         self.resources : dict[str:list[ScheduledNodeInfo]] = {}
         for info in self.schedule_info:
             resource_name = f"{info.node.op_type}{info.resource_num}"
+            if resource_name not in self.resources:
+                    self.resources[resource_name] = []
             self.resources[resource_name].append(info)
             
         self.op_codes = {
@@ -81,8 +105,9 @@ class VerilogGenerator:
         }
 
         # {resource_name: {operand_index (0/1): {source_name: select_value}}}
-        self.mux_tables: dict[str:dict[dict[int:str]]] = {}
+        self.mux_tables: dict[str:dict[int:dict[int:str]]] = {}
         self._build_mux_tables()
+        self._build_resources_start_duration_table()
      
     def _get_op_width(self, res_type):
         res_type = res_type.lower()
@@ -91,120 +116,183 @@ class VerilogGenerator:
             return 2
         else:
             return 1   
-
-    def generate_datapath(self):
-        lines = []
-        
-        lines.append("module datapath(")
-        lines.append("  input clk, rst,")
-        
+    
+    def _generate_input_signals(self):    
         inputs_list = sorted(list(self.inputs))
-        inputs_str = ",\n // Data Inputs\n  ".join([f"input [31:0] {i}" for i in inputs_list])
-        if inputs_list: inputs_str = f"  {inputs_str},"
+        inputs_str = " // input signals\n"
+        
+        if inputs_list:
+            for input in inputs_list:
+                inputs_str += f"  input [31:0] {input},\n" 
+                        
         else: inputs_str = "  // No data inputs detected"
-        lines.append(inputs_str)
+        
+        return inputs_str
+    
+    def _generate_control_signals(self, mode="datapath"):
+        control_str = ""
+        in_out = ""
+        if mode == "datapath":
+            control_str += " // Control Signals from Controller"
+            in_out = "input"
+        elif mode == "fsm":
+            control_str += " // Out Control Signals"
+            in_out = "output"
+        
+        control_str += "\n"
 
-        lines.append(" // Control Signals from Controller")
+        def clog2(n: int) -> int:
+            if n <= 1:
+                return 0
+            return (n - 1).bit_length()
+
         for res in sorted(self.resources.keys()):
+            control_str += f" // resource {res}\n"
+
+            width_1 = clog2(len(self.mux_tables[res][0]))
+            width_2 = clog2(len(self.mux_tables[res][1]))
+            if width_1 == 0:
+                pass
+            elif width_1 == 1:
+                control_str += f"  {in_out}       {res}_sel1,\n"
+            else:
+                control_str += f"  {in_out} [{width_1-1}:0] {res}_sel1,\n"
+
+            if width_2 == 0:
+                pass
+            elif width_2 == 1:
+                control_str += f"  {in_out}       {res}_sel2,\n"
+            else:
+                control_str += f"  {in_out} [{width_2-1}:0] {res}_sel2,\n"
+                
             op_width = self._get_op_width(res)
-            lines.append(f"  input [3:0] {res}_sel1, {res}_sel2,")
             if op_width > 1:
-                lines.append(f"  input [{op_width-1}:0] {res}_op,")
+                control_str += f"  {in_out} [{op_width-1}:0] {res}_op,"
             elif op_width == 1:
-                lines.append(f"  input {res}_op,")
+                control_str += f"  {in_out}       {res}_op,"
             else:
                 pass
+            control_str += "\n"
         
-        lines.append("  input done_next, result_en,")
-        for info in self.schedule_info:
-            lines.append(f"  input {self._get_reg_name(info.node.id)}_en,")
+        return control_str
+
+    def _generate_reg_enables(self, mode="datapath"):
+        control_str = ""
+        in_out = ""
+        if mode == "datapath":
+            control_str += " // Register En from Controller"
+            in_out = "input"
+        elif mode == "fsm":
+            control_str += " // Out Registers En"
+            in_out = "output"
         
-        lines.append("  // Outputs")    
-        lines.append("  output reg [31:0] result,")
-        lines.append("  output reg done")
-        lines.append(");\n")
+        control_str += "\n"
+
+        for res in sorted(self.resources.keys()):
+            control_str += f" // resource {res}\n"
+
+            control_str += f"  {in_out}       {res}_reg_en,\n"
+            
+        
+        control_str += "\n"
+
+        return control_str
+
+    def generate_datapath(self):
+        
+        lines = ""
+        
+        lines += "module datapath(\n"
+        lines += "  input clk, rst,\n"
+        lines += "  output reg [31:0] result,\n"
+        
+        lines += self._generate_input_signals()
+        lines += self._generate_control_signals(mode="datapath")
+        lines += self._generate_reg_enables(mode="datapath")
+          
+        lines += ");\n"
 
     #     for res in sorted(self.resources.keys()):
-    #         lines.append(f"wire [31:0] {res}_out, {res}_op1, {res}_op2;")
+    #         lines += f"wire [31:0] {res}_out, {res}_op1, {res}_op2;")
     #         if "alu" in res.lower():
-    #             lines.append(f"wire {res}_zero, {res}_greater, {res}_less;")
+    #             lines += f"wire {res}_zero, {res}_greater, {res}_less;")
     #         if "logic" in res.lower():
-    #             lines.append(f"wire {res}_eq;") # برای Eq, NotEq
+    #             lines += f"wire {res}_eq;") # برای Eq, NotEq
 
-    #     lines.append("\n// Registers")
+    #     lines += "\n// Registers")
     #     for info in self.schedule_info:
-    #         lines.append(f"reg [31:0] {self._get_reg_name(info.node.id)};")
+    #         lines += f"reg [31:0] {self._get_reg_name(info.node.id)};")
 
-    #     lines.append("\n// Muxing Logic")
+    #     lines += "\n// Muxing Logic")
     #     for res in sorted(self.resources.keys()):
     #         for op_idx in [0, 1]:
     #             suffix = "1" if op_idx == 0 else "2"
-    #             lines.append(f"reg [31:0] {res}_op{suffix}_reg;")
-    #             lines.append(f"always @(*) begin")
-    #             lines.append(f"  case ({res}_sel{suffix})")
+    #             lines += f"reg [31:0] {res}_op{suffix}_reg;")
+    #             lines += f"always @(*) begin")
+    #             lines += f"  case ({res}_sel{suffix})")
     #             for src, sel_val in self.mux_tables[res][op_idx].items():
-    #                 lines.append(f"    4'd{sel_val}: {res}_op{suffix}_reg = {src};")
-    #             lines.append(f"    default: {res}_op{suffix}_reg = 0;")
-    #             lines.append(f"  endcase")
-    #             lines.append(f"end")
-    #             lines.append(f"assign {res}_op{suffix} = {res}_op{suffix}_reg;")
+    #                 lines += f"    4'd{sel_val}: {res}_op{suffix}_reg = {src};")
+    #             lines += f"    default: {res}_op{suffix}_reg = 0;")
+    #             lines += f"  endcase")
+    #             lines += f"end")
+    #             lines += f"assign {res}_op{suffix} = {res}_op{suffix}_reg;")
 
-    #     lines.append("\n// Functional Units Logic")
+    #     lines += "\n// Functional Units Logic")
     #     for res in sorted(self.resources.keys()):
     #         res_lower = res.lower()
-    #         lines.append(f"// {res.upper()} Unit")
-    #         lines.append(f"reg [31:0] {res}_out_reg;")
+    #         lines += f"// {res.upper()} Unit")
+    #         lines += f"reg [31:0] {res}_out_reg;")
             
     #         if "alu" in res_lower:
-    #             lines.append(f"wire [31:0] {res}_diff = {res}_op1 - {res}_op2;")
-    #             lines.append(f"assign {res}_zero = ({res}_diff == 0);")
-    #             lines.append(f"assign {res}_less = {res}_diff[31];") # علامت منفی
-    #             lines.append(f"assign {res}_greater = (!{res}_diff[31] && !{res}_zero);")
+    #             lines += f"wire [31:0] {res}_diff = {res}_op1 - {res}_op2;")
+    #             lines += f"assign {res}_zero = ({res}_diff == 0);")
+    #             lines += f"assign {res}_less = {res}_diff[31];") # علامت منفی
+    #             lines += f"assign {res}_greater = (!{res}_diff[31] && !{res}_zero);")
                 
-    #             lines.append(f"always @(*) begin")
-    #             lines.append(f"  case ({res}_op)")
-    #             lines.append(f"    2'd0: {res}_out_reg = {res}_op1 + {res}_op2;")
-    #             lines.append(f"    2'd1: {res}_out_reg = {res}_diff;") # Sub
-    #             lines.append(f"    2'd2: {res}_out_reg = -{res}_op1;")  # USub
-    #             lines.append(f"    default: {res}_out_reg = 0;")
-    #             lines.append(f"  endcase")
-    #             lines.append(f"end")
+    #             lines += f"always @(*) begin")
+    #             lines += f"  case ({res}_op)")
+    #             lines += f"    2'd0: {res}_out_reg = {res}_op1 += {res}_op2;")
+    #             lines += f"    2'd1: {res}_out_reg = {res}_diff;") # Sub
+    #             lines += f"    2'd2: {res}_out_reg = -{res}_op1;")  # USub
+    #             lines += f"    default: {res}_out_reg = 0;")
+    #             lines += f"  endcase")
+    #             lines += f"end")
             
     #         elif "logic" in res_lower:
-    #             lines.append(f"assign {res}_eq = ({res}_op1 == {res}_op2);")
+    #             lines += f"assign {res}_eq = ({res}_op1 == {res}_op2);")
                 
-    #             lines.append(f"always @(*) begin")
-    #             lines.append(f"  case ({res}_op)")
-    #             lines.append(f"    2'd0: {res}_out_reg = {res}_op1 & {res}_op2;")
-    #             lines.append(f"    2'd1: {res}_out_reg = {res}_op1 | {res}_op2;")
-    #             lines.append(f"    2'd2: {res}_out_reg = {res}_op1 ^ {res}_op2;")
-    #             lines.append(f"    2'd3: {res}_out_reg = ~{res}_op1;")
-    #             lines.append(f"    default: {res}_out_reg = 0;")
-    #             lines.append(f"  endcase")
-    #             lines.append(f"end")
+    #             lines += f"always @(*) begin")
+    #             lines += f"  case ({res}_op)")
+    #             lines += f"    2'd0: {res}_out_reg = {res}_op1 & {res}_op2;")
+    #             lines += f"    2'd1: {res}_out_reg = {res}_op1 | {res}_op2;")
+    #             lines += f"    2'd2: {res}_out_reg = {res}_op1 ^ {res}_op2;")
+    #             lines += f"    2'd3: {res}_out_reg = ~{res}_op1;")
+    #             lines += f"    default: {res}_out_reg = 0;")
+    #             lines += f"  endcase")
+    #             lines += f"end")
             
     #         elif "mul" in res_lower:
-    #             lines.append(f"always @(*) case ({res}_op)")
-    #             lines.append(f"  1'd0: {res}_out_reg = {res}_op1 * {res}_op2;")
-    #             lines.append(f"  1'd1: {res}_out_reg = {res}_op1 / {res}_op2;")
-    #             lines.append(f"  default: {res}_out_reg = 0;")
-    #             lines.append(f"endcase")
+    #             lines += f"always @(*) case ({res}_op)")
+    #             lines += f"  1'd0: {res}_out_reg = {res}_op1 * {res}_op2;")
+    #             lines += f"  1'd1: {res}_out_reg = {res}_op1 / {res}_op2;")
+    #             lines += f"  default: {res}_out_reg = 0;")
+    #             lines += f"endcase")
     #         elif "shift" in res_lower:
-    #             lines.append(f"always @(*) case ({res}_op)")
-    #             lines.append(f"  1'd0: {res}_out_reg = {res}_op1 << {res}_op2;")
-    #             lines.append(f"  1'd1: {res}_out_reg = {res}_op1 >> {res}_op2;")
-    #             lines.append(f"  default: {res}_out_reg = 0;")
-    #             lines.append(f"endcase")
+    #             lines += f"always @(*) case ({res}_op)")
+    #             lines += f"  1'd0: {res}_out_reg = {res}_op1 << {res}_op2;")
+    #             lines += f"  1'd1: {res}_out_reg = {res}_op1 >> {res}_op2;")
+    #             lines += f"  default: {res}_out_reg = 0;")
+    #             lines += f"endcase")
 
-    #         lines.append(f"assign {res}_out = {res}_out_reg;")
+    #         lines += f"assign {res}_out = {res}_out_reg;")
 
-    #     lines.append("\n// Register Update Logic")
-    #     lines.append("always @(posedge clk or posedge rst) begin")
-    #     lines.append("  if (rst) begin")
-    #     for info in self.schedule_info: lines.append(f"    {self._get_reg_name(info.node.id)} <= 0;")
-    #     lines.append("    result <= 0; done <= 0;")
-    #     lines.append("  end else begin")
-    #     lines.append("    done <= done_next;")
+    #     lines += "\n// Register Update Logic")
+    #     lines += "always @(posedge clk or posedge rst) begin")
+    #     lines += "  if (rst) begin")
+    #     for info in self.schedule_info: lines += f"    {self._get_reg_name(info.node.id)} <= 0;")
+    #     lines += "    result <= 0; done <= 0;")
+    #     lines += "  end else begin")
+    #     lines += "    done <= done_next;")
         
     #     for info in self.schedule_info:
     #         reg_name = self._get_reg_name(info.node.id)
@@ -221,13 +309,14 @@ class VerilogGenerator:
     #         elif op_type == ast.Eq:    source_wire = f"{{31'b0, {res_prefix}_eq}}"
     #         elif op_type == ast.NotEq: source_wire = f"{{31'b0, !{res_prefix}_eq}}"
             
-    #         lines.append(f"    if ({reg_name}_en) {reg_name} <= {source_wire};")
+    #         lines += f"    if ({reg_name}_en) {reg_name} <= {source_wire};")
 
-    #     lines.append("    if (result_en) result <= alu1_out; // Simplification")
-    #     lines.append("  end")
-    #     lines.append("end")
-    #     lines.append("endmodule")
-    #     return "\n".join(lines)
+    #     lines += "    if (result_en) result <= alu1_out; // Simplification")
+    #     lines += "  end")
+    #     lines += "end")
+        
+        lines += "endmodule"
+        return lines
 
     # def generate_controller(self):
     #     lines = []
@@ -297,20 +386,26 @@ class VerilogGenerator:
     #     lines.append("endmodule")
     #     return "\n".join(lines)
 
+
+
+
+
 def generate_verilog(folder_path : str, schedule_info : list[ScheduledNodeInfo]):
     
     generator = VerilogGenerator(schedule_info)
     
     datapath_code = generator.generate_datapath()
-    controller_code = generator.generate_controller()
+    # controller_code = generator.generate_controller()
     
     output_dir = os.path.join(folder_path, "codes")
     os.makedirs(output_dir, exist_ok=True)
     
-    with open(os.path.join(output_dir, "Datapath.v"), "w") as f:
+    # print(datapath_code)
+    
+    with open(os.path.join(output_dir, "Datapath.sv"), "w") as f:
         f.write(datapath_code)
         
-    with open(os.path.join(output_dir, "Controller.v"), "w") as f:
-        f.write(controller_code)
+    # with open(os.path.join(output_dir, "Controller.v"), "w") as f:
+        # f.write(controller_code)
         
     print("Verilog generated")

@@ -69,6 +69,7 @@ class OperatorNode(BaseNode):
         self.op_type = op_type
         self.op = op 
         self.operands = [left_operand, right_operand]
+        
 
     def __repr__(self) -> str:
         def get_operand_name(p):
@@ -150,7 +151,7 @@ class GraphBuilder:
                         id=             node_id,
                         name=           symbols[type(node.op)]
                     )
-                    
+                
                     node_id += 1
                     self.all_nodes.append(new_node)
                     current_node = new_node

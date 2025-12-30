@@ -7,7 +7,9 @@ class ScheduledNodeInfo:
         self.node = node
         self.scheduled_time = scheduled_time
         self.duration_cycles = duration_cycles
+        self.resource = node.op_type + str(resource_num)
         self.resource_num = resource_num
+        
 
 
 class ListScheduler(ABC):

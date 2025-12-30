@@ -12,7 +12,7 @@
     "5": {
         "clk_cycle": 2,
         "resource_type": "mult",
-        "resource_num": 2
+        "resource_num": 1
     },
     "6": {
         "clk_cycle": 1,
@@ -22,7 +22,7 @@
     "7": {
         "clk_cycle": 2,
         "resource_type": "mult",
-        "resource_num": 1
+        "resource_num": 2
     },
     "8": {
         "clk_cycle": 3,
