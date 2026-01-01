@@ -9,7 +9,6 @@ class VerilogGenerator:
         info = self.node_map[node_id]
         return f"reg_{info.node.op_type}{info.node.id}"
 
-
     def _get_op_width(self, res_type):
         res_type = res_type.lower()
         
@@ -61,10 +60,14 @@ class VerilogGenerator:
         self.schedule_info = sorted(schedule_info, key=lambda x: x.node.id)
         self.node_map = {info.node.id: info for info in self.schedule_info}
         self.node_to_reg_map = {}
+        
+        self._collect_max_cycles()
         self._collect_inputs()
         self._collect_resources()
+        
         self._build_registers()
         self._build_mux_tables()
+        self._build_control_table()
         
         
 ###############################################################################################
@@ -85,19 +88,15 @@ class VerilogGenerator:
                     self.resources[resource_name] = []
             self.resources[resource_name].append(info)
     
-    
-    def _generate_input_signals(self):    
-        inputs_list = sorted(list(self.inputs))
-        inputs_str = " // input signals\n"
+    def _collect_max_cycles(self):
+        self.max_cycle = 0
+        for info in self.schedule_info:
+            if info.scheduled_time > self.max_cycle:
+                self.max_cycle = info.scheduled_time
+        self.total_states = self.max_cycle + 2 
         
-        if inputs_list:
-            for input in inputs_list:
-                inputs_str += f"  input [31:0] {input},\n" 
-                        
-        else: inputs_str = "  // No data inputs detected"
-        
-        return inputs_str
-    
+###############################################################################################
+       
     def _build_mux_tables(self):
         
         # {resource_name: {operand_index (0/1): {source_name: select_value}}}
@@ -176,6 +175,7 @@ class VerilogGenerator:
                         registers_free_time[i] = end
                         assigned_reg_id = i
                         if (i + 1) not in schedule: schedule[i + 1] = []
+                        schedule[i + 1].append(start)
                         allocated = True
                         break
                 
@@ -193,7 +193,56 @@ class VerilogGenerator:
                 "schedule": schedule
             }
             
-        print(self.registers_config)
+        # print(self.registers_config)
+
+    def _build_control_table(self):
+        """
+        Creates a dictionary of control signals for each time step (cycle).
+        Output: self.cycle_signals = { time: { 'signal_name': value } }
+        """
+        self.cycle_signals = {t: {} for t in range(1, self.max_cycle + 1)}
+
+        for info in self.schedule_info:
+            t = info.scheduled_time
+            res = f"{info.node.op_type}{info.resource_num}"
+            
+            op_code_val = self.op_codes.get(type(info.node.op), 0)
+            if self._get_op_width(res) > 0:
+                self.cycle_signals[t][f"{res}_op"] = op_code_val
+
+            if len(info.node.operands) > 0:
+                if len(self.mux_tables[res][0]) > 1:
+                    src1 = self._get_operand_source(info.node.operands[0])
+                    if src1 in self.mux_tables[res][0]:
+                        sel_val1 = self.mux_tables[res][0][src1]
+                        self.cycle_signals[t][f"{res}_sel1"] = sel_val1
+            
+            if len(info.node.operands) > 1:
+                if len(self.mux_tables[res][1]) > 1:
+                    src2 = self._get_operand_source(info.node.operands[1])
+                    if src2 in self.mux_tables[res][1]:
+                        sel_val2 = self.mux_tables[res][1][src2]
+                        self.cycle_signals[t][f"{res}_sel2"] = sel_val2
+
+        for res, config in self.registers_config.items():
+            for reg_id, enable_times in config['schedule'].items():
+                for t in enable_times:
+                    if t <= self.max_cycle:
+                        self.cycle_signals[t][f"{res}_reg{reg_id-1}_en"] = 1
+
+###############################################################################################
+   
+    def _generate_input_signals(self):    
+        inputs_list = sorted(list(self.inputs))
+        inputs_str = " // input signals\n"
+        
+        if inputs_list:
+            for input in inputs_list:
+                inputs_str += f"  input [31:0] {input},\n" 
+                        
+        else: inputs_str = "  // No data inputs detected"
+        
+        return inputs_str
     
     def _generate_control_signals(self, mode="datapath"):
         control_str = ""
@@ -203,7 +252,7 @@ class VerilogGenerator:
             in_out = "input"
         elif mode == "fsm":
             control_str += " // Out Control Signals"
-            in_out = "output"
+            in_out = "output reg"
         
         control_str += "\n"
 
@@ -250,7 +299,7 @@ class VerilogGenerator:
             in_out = "input"
         elif mode == "fsm":
             control_str += " // Out Registers En"
-            in_out = "output"
+            in_out = "output reg"
         
         control_str += "\n"
 
@@ -452,7 +501,7 @@ endmodule
         with open(os.path.join(modules_dir, "Divider.sv"), "w") as f:
             f.write(div_code)
 
-        print(f"Modules generated in {modules_dir}")
+        # print(f"Modules generated in {modules_dir}")
     
     def generate_datapath(self):
         
@@ -535,6 +584,122 @@ endmodule
 `endif // DATAPATH"""
         
         return lines
+    
+    def _generate_states(self):
+        state_bits = (self.total_states - 1).bit_length() if self.total_states > 1 else 1
+        
+        code_str = ""
+        code_str += f"  // State Encoding\n"
+        code_str += f"  localparam IDLE     = {state_bits}'d0;\n"
+        for t in range(1, self.max_cycle + 1):
+            code_str += f"  localparam CYCLE{t}   = {state_bits}'d{t};\n"
+        code_str += f"  localparam DONE     = {state_bits}'d{self.max_cycle + 1};\n\n"
+        
+        code_str += f"  reg [{state_bits-1}:0] current_state, next_state;\n\n"
+        
+        return code_str
+    
+    def _generate_seq_block(self):
+        code_str = ""
+        code_str += "  // State Register\n"
+        code_str += "  always @(posedge clk or posedge rst) begin\n"
+        code_str += "    if (rst)\n"
+        code_str += "      current_state <= IDLE;\n"
+        code_str += "    else\n"
+        code_str += "      current_state <= next_state;\n"
+        code_str += "  end\n\n"
+        return code_str
+
+    def _generate_next_state_block(self):
+        code_str = ""
+        code_str += "  // Next State Block\n"
+        code_str += "  always @(*) begin\n"
+        code_str += "    case (current_state)\n"
+        code_str += "      IDLE: begin\n"
+        code_str += "        if (start) next_state = CYCLE1;\n"
+        code_str += "        else       next_state = IDLE;\n"
+        code_str += "      end\n"
+        
+        for t in range(1, self.max_cycle):
+            code_str += f"      CYCLE{t}: next_state = CYCLE{t+1};\n"
+            
+        if self.max_cycle > 0:
+            code_str += f"      CYCLE{self.max_cycle}: next_state = DONE;\n"
+            
+        code_str += "      DONE: next_state = IDLE;\n"
+        code_str += "      default: next_state = IDLE;\n"
+        code_str += "    endcase\n"
+        code_str += "  end\n\n"
+        return code_str
+    
+    def _generate_output_block(self):
+        code_str = ""
+        code_str += "  // Output Block\n"
+        code_str += "  always @(*) begin\n"
+        code_str += "    done = 0;\n"
+        
+        for res in sorted(self.resources.keys()):
+        
+            # Op Code
+            if self._get_op_width(res) > 0:
+                code_str += f"    {res}_op = 0;\n"
+            
+            # Sel 1 (Only if Mux exists)
+            if len(self.mux_tables[res][0]) > 1:
+                code_str += f"    {res}_sel1 = 0;\n"
+                
+            # Sel 2 (Only if Mux exists)
+            if len(self.mux_tables[res][1]) > 1:
+                code_str += f"    {res}_sel2 = 0;\n"
+            
+            # Enables
+            if res in self.registers_config:
+                for reg_num in range(self.registers_config[res]["count"]):
+                     code_str += f"    {res}_reg{reg_num}_en = 0;\n"
+        
+        code_str += "\n    case (current_state)\n"
+        
+        # IDLE
+        code_str += "      IDLE: begin\n"
+        code_str += "        done = 0;\n"
+        code_str += "      end\n"
+
+        # Active States
+        for t in range(1, self.max_cycle + 1):
+            code_str += f"      CYCLE{t}: begin\n"
+            for sig, val in self.cycle_signals[t].items():
+                code_str += f"        {sig} = {val};\n"
+            code_str += "      end\n"
+        
+        # DONE
+        code_str += "      DONE: begin\n"
+        code_str += "        done = 1;\n"
+        code_str += "      end\n"
+        
+        code_str += "    endcase\n"
+        code_str += "  end\n\n"
+        return code_str
+    
+    def generate_controller(self):
+                
+        
+        lines = "module Controller (\n"
+        lines += "  input  wire clk, rst, start,\n"
+        lines += "  output reg  done,\n"
+        
+        lines += self._generate_control_signals(mode="fsm")
+        lines += self._generate_reg_enables(mode="fsm")
+        
+        lines += ");\n\n"
+
+        
+        lines += self._generate_states()
+        lines += self._generate_seq_block()
+        lines += self._generate_next_state_block()
+        lines += self._generate_output_block()
+        
+        lines += "endmodule\n"
+        return lines
 
     
 def generate_verilog(folder_path : str, schedule_info : list[ScheduledNodeInfo]):
@@ -542,17 +707,16 @@ def generate_verilog(folder_path : str, schedule_info : list[ScheduledNodeInfo])
     generator = VerilogGenerator(schedule_info, folder_path)
     
     datapath_code = generator.generate_datapath()
-    # controller_code = generator.generate_controller()
+    controller_code = generator.generate_controller()
     
     output_dir = os.path.join(folder_path, "codes")
     os.makedirs(output_dir, exist_ok=True)
     
-    # print(datapath_code)
-    
     with open(os.path.join(output_dir, "Datapath.sv"), "w") as f:
         f.write(datapath_code)
+    print("datapath generated")
         
-    # with open(os.path.join(output_dir, "Controller.v"), "w") as f:
-        # f.write(controller_code)
-        
-    print("Verilog generated")
+    with open(os.path.join(output_dir, "Controller.sv"), "w") as f:
+        f.write(controller_code)
+    print("controller generated")
+    print("verilog generating done")
