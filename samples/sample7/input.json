@@ -1,0 +1,19 @@
+{
+  "Expression": [
+    "((rom_table[32] - i2) / ((i2 * i3) - (i3 | i1))) + ((i3 / i2) + (i1 - (i2 & i3)))",
+    "(a*b*c) if ((b < c) > d8) else d",
+    "rom_table[d8] * x[7:0] + y[3:0]",
+    "(a << 8) | b",
+    "rom_table[i3] / min(x,y,z)",
+    "abs(concat(x[31:16], y)) + y + 64"
+  ],
+  "Algorithm": "MinLatencyResourceContrained",
+  "Config": {
+    "MaxTime": 10,
+    "Resources": {
+      "ALU": 2,
+      "mult": 1,
+      "logic": 3
+    }
+  }
+}

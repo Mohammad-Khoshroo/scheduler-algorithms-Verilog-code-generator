@@ -20,7 +20,6 @@ def determine_operation_type(op) -> str:
         ast.BitOr: "|",
         ast.BitXor: "^",
         ast.Invert: "~",
-        ast.UAdd: "+",
         ast.USub: "-",
         ast.Eq: "==",
         ast.NotEq: "!=",
@@ -47,86 +46,165 @@ def determine_operation_type(op) -> str:
     elif isinstance(op, (ast.BitAnd, ast.BitOr, ast.BitXor)):
         return f"logic({sym})"
 
-    elif isinstance(op, (ast.Invert, ast.Not, ast.UAdd, ast.USub)):
+    elif isinstance(op, (ast.Invert, ast.USub)):
         return f"ULogic({sym})"
 
     elif isinstance(op, (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
-        return f"cmp({sym})"
+        return f"ALU[cmp]({sym})"
 
     else:
         return f"?({sym})"
 
-
 def visualize_graph(root, version=1):
     dot = graphviz.Digraph(comment="Abstract Syntax Tree")
-    dot.attr(rankdir="TB", size="8,8")
+    dot.attr(dpi="300", rankdir="TB", size="8,8", splines="true")
 
     node_counter = 0
     visited_identifiers = dict()
     identifier_nodes = []
+    
+    def get_constant_value(node):
+        if isinstance(node, ast.Constant):
+            return str(node.value)
+        return None
 
-    def add_node_and_edges(node, parent_id=None):
+    def add_node_and_edges(node, parent_id=None, edge_label=""):
         nonlocal node_counter
         nonlocal visited_identifiers
+        fillcolor = "white"
+        
+        if isinstance(node, ast.Tuple) and parent_id is None:
+            for i, elt in enumerate(node.elts):
+                out_id = f"Output_Node_{i}"
+                dot.node(out_id, f"Out {i}", style="filled", fillcolor="#b9b9b9")
+                add_node_and_edges(elt, parent_id=out_id)            
+            return 
+
         cur_node_id = str(node_counter)
         node_counter += 1
 
+        label = "" 
+        is_shared_node = False
+        
         if isinstance(node, ast.BinOp):
-            label = f"{determine_operation_type(node.op)}"
+            label = determine_operation_type(node.op)
             add_node_and_edges(node.left, cur_node_id)
             add_node_and_edges(node.right, cur_node_id)
 
         elif isinstance(node, ast.UnaryOp):
-            label = f"{determine_operation_type(node.op)}"
+            label = determine_operation_type(node.op)
             add_node_and_edges(node.operand, cur_node_id)
             
         elif isinstance(node, ast.Compare):
-            label = f"{determine_operation_type(node.ops[0])}"
-
-            add_node_and_edges(node.left, cur_node_id)
-
-            for comp in node.comparators:
-                add_node_and_edges(comp, cur_node_id)
+            label = determine_operation_type(node.ops[0])
+            add_node_and_edges(node.left, cur_node_id, edge_label="L")
+            for i, comp in enumerate(node.comparators):
+                lbl = "R" if len(node.comparators) == 1 else f"R{i}"
+                add_node_and_edges(comp, cur_node_id, edge_label=lbl)
 
         elif isinstance(node, ast.Name):
-            label = f"{node.id}"
+            if "rom" in node.id.lower():
+                label = f"ROM-LUT({node.id[4:]})"
+                fillcolor = "lightgreen"
+                is_shared_node = True
+            else:
+                label = f"{node.id}"
+                fillcolor = "lightblue"
+                if version == 2:
+                    is_shared_node = True
 
         elif isinstance(node, ast.Constant):
             label = f"const= {node.value}"
+            fillcolor = "lightblue"
+        
+        elif isinstance(node, ast.Subscript):
+            is_constant_op = False
+            edge_text = ""
+            
+            if isinstance(node.slice, ast.Slice):
+                lower = get_constant_value(node.slice.lower)
+                upper = get_constant_value(node.slice.upper)
+                if lower is not None and upper is not None:
+                    is_constant_op = True
+                    edge_text = f"[{lower}:{upper}]"
+            else:
+                idx_node = node.slice
+                idx_val = get_constant_value(idx_node)
+                if idx_val is not None:
+                    is_constant_op = True
+                    edge_text = f"[{idx_val}]"
 
+            if is_constant_op:
+                if edge_label: edge_text = f"{edge_label}\n{edge_text}"
+                add_node_and_edges(node.value, parent_id, edge_label=edge_text)
+                return
+            
+            add_node_and_edges(node.value, cur_node_id)
+            
+            if isinstance(node.slice, ast.Slice):
+                label = "Slice [ : ]"
+                if node.slice.lower: add_node_and_edges(node.slice.lower, cur_node_id, edge_label="Lower")
+                if node.slice.upper: add_node_and_edges(node.slice.upper, cur_node_id, edge_label="Upper")
+            else:
+                label = "MUX(Index[ ])"
+                slice_n = node.slice
+                add_node_and_edges(slice_n, cur_node_id, edge_label="select(idx)")
+                
+        elif isinstance(node, ast.Call):
+            func_name = node.func.id if isinstance(node.func, ast.Name) else 'func'
+            
+            if func_name == "concat":
+                dot.node(cur_node_id, label="", shape="point", width="0.1")
+                for i, arg in enumerate(node.args):
+                    add_node_and_edges(arg, cur_node_id, edge_label=f"part_{i}")
+                if parent_id is not None:
+                    dot.edge(cur_node_id, parent_id, label=edge_label, minlen="2")
+                return
+
+            label = f"Call: {func_name}"
+            if func_name in ["min", "max"]:
+                label = func_name.upper()
+                fillcolor = "#ffe6cc"
+            elif func_name == "abs":
+                label = "| Abs |"
+                fillcolor = "#dae8fc"
+
+            for i, arg in enumerate(node.args):
+                add_node_and_edges(arg, cur_node_id)
+    
+        elif isinstance(node, ast.IfExp):
+            label = "MUX (?:)"
+            add_node_and_edges(node.test, cur_node_id, edge_label="select")
+            add_node_and_edges(node.body, cur_node_id, edge_label="true")
+            add_node_and_edges(node.orelse, cur_node_id, edge_label="false")
+        
         else:
             label = type(node).__name__
 
-        if (
-            version == 2
-            and not label.startswith("c=")
-            and not label.startswith("ALU")
-            and not label.startswith("mult")
-            and not label.startswith("div")
-            and not label.startswith("shift")
-            and not label.startswith("logic")
-            and not label.startswith("ULogic")
-            and not label.startswith("cmp")
-        ):
-            if label in visited_identifiers.keys():
-                cur_node_id = visited_identifiers[label]
+        # DRAW        
+        if is_shared_node:
+            if label in visited_identifiers:
+                existing_id = visited_identifiers[label]
+                if parent_id is not None:
+                    dot.edge(existing_id, parent_id, label=edge_label)
+                return
             else:
                 visited_identifiers[label] = cur_node_id
-                dot.node(cur_node_id, label)
                 identifier_nodes.append(cur_node_id)
-        else:
-            dot.node(cur_node_id, label)
+        
+        dot.node(cur_node_id, label, style="filled", fillcolor=fillcolor)
 
         if parent_id is not None:
-            dot.edge(cur_node_id, parent_id)
+            dot.edge(cur_node_id, parent_id, label=edge_label)
 
     add_node_and_edges(root)
 
-    if version == 2 and identifier_nodes:
+    if identifier_nodes:
         with dot.subgraph() as s:
             s.attr(rank="source")
             for nid in identifier_nodes:
                 s.node(nid)
+                
     return dot
 
 
@@ -353,6 +431,22 @@ def parse_expression(expression):
         print(f"Error parsing expression: {e}")
         return
 
+def expression_to_graph(input_data):
+    
+    if isinstance(input_data, str):
+        final_expression = input_data
+    
+    elif isinstance(input_data, list):
+        # input_data = ["a", "b", "c"]
+        # final_expression = "(a, b, c)"
+        final_expression = f"({', '.join(input_data)})"
+    
+    else:
+        print("Error: Input format not supported.")
+        return None
 
-def expression_to_graph(expression):
-    return parse_expression(expression)
+    print(f"Parsing: {final_expression}")
+    
+    root = parse_expression(final_expression)
+    
+    return root

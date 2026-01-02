@@ -575,6 +575,7 @@ endmodule
                 lines += _generate_shifter(res)
             elif "mult" in res:
                 lines += _generate_multiplier(res)
+            
         
         lines += self._generate_registers()
 
@@ -682,8 +683,11 @@ endmodule
     
     def generate_controller(self):
                 
-        
-        lines = "module Controller (\n"
+        lines = """`ifndef FSM
+`define FSM
+
+"""
+        lines += "module Controller (\n"
         lines += "  input  wire clk, rst, start,\n"
         lines += "  output reg  done,\n"
         
@@ -699,6 +703,8 @@ endmodule
         lines += self._generate_output_block()
         
         lines += "endmodule\n"
+        lines += """
+`endif // FSM"""
         return lines
 
     

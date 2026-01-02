@@ -1,0 +1,118 @@
+Tuple(
+    elts=[
+        BinOp(
+            left=BinOp(
+                left=BinOp(
+                    left=Subscript(
+                        value=Name(id='rom_table', ctx=Load()),
+                        slice=Constant(value=32),
+                        ctx=Load()),
+                    op=Sub(),
+                    right=Name(id='i2', ctx=Load())),
+                op=Div(),
+                right=BinOp(
+                    left=BinOp(
+                        left=Name(id='i2', ctx=Load()),
+                        op=Mult(),
+                        right=Name(id='i3', ctx=Load())),
+                    op=Sub(),
+                    right=BinOp(
+                        left=Name(id='i3', ctx=Load()),
+                        op=BitOr(),
+                        right=Name(id='i1', ctx=Load())))),
+            op=Add(),
+            right=BinOp(
+                left=BinOp(
+                    left=Name(id='i3', ctx=Load()),
+                    op=Div(),
+                    right=Name(id='i2', ctx=Load())),
+                op=Add(),
+                right=BinOp(
+                    left=Name(id='i1', ctx=Load()),
+                    op=Sub(),
+                    right=BinOp(
+                        left=Name(id='i2', ctx=Load()),
+                        op=BitAnd(),
+                        right=Name(id='i3', ctx=Load()))))),
+        IfExp(
+            test=Compare(
+                left=Compare(
+                    left=Name(id='b', ctx=Load()),
+                    ops=[
+                        Lt()],
+                    comparators=[
+                        Name(id='c', ctx=Load())]),
+                ops=[
+                    Gt()],
+                comparators=[
+                    Name(id='d8', ctx=Load())]),
+            body=BinOp(
+                left=BinOp(
+                    left=Name(id='a', ctx=Load()),
+                    op=Mult(),
+                    right=Name(id='b', ctx=Load())),
+                op=Mult(),
+                right=Name(id='c', ctx=Load())),
+            orelse=Name(id='d', ctx=Load())),
+        BinOp(
+            left=BinOp(
+                left=Subscript(
+                    value=Name(id='rom_table', ctx=Load()),
+                    slice=Name(id='d8', ctx=Load()),
+                    ctx=Load()),
+                op=Mult(),
+                right=Subscript(
+                    value=Name(id='x', ctx=Load()),
+                    slice=Slice(
+                        lower=Constant(value=7),
+                        upper=Constant(value=0)),
+                    ctx=Load())),
+            op=Add(),
+            right=Subscript(
+                value=Name(id='y', ctx=Load()),
+                slice=Slice(
+                    lower=Constant(value=3),
+                    upper=Constant(value=0)),
+                ctx=Load())),
+        BinOp(
+            left=BinOp(
+                left=Name(id='a', ctx=Load()),
+                op=LShift(),
+                right=Constant(value=8)),
+            op=BitOr(),
+            right=Name(id='b', ctx=Load())),
+        BinOp(
+            left=Subscript(
+                value=Name(id='rom_table', ctx=Load()),
+                slice=Name(id='i3', ctx=Load()),
+                ctx=Load()),
+            op=Div(),
+            right=Call(
+                func=Name(id='min', ctx=Load()),
+                args=[
+                    Name(id='x', ctx=Load()),
+                    Name(id='y', ctx=Load()),
+                    Name(id='z', ctx=Load())],
+                keywords=[])),
+        BinOp(
+            left=BinOp(
+                left=Call(
+                    func=Name(id='abs', ctx=Load()),
+                    args=[
+                        Call(
+                            func=Name(id='concat', ctx=Load()),
+                            args=[
+                                Subscript(
+                                    value=Name(id='x', ctx=Load()),
+                                    slice=Slice(
+                                        lower=Constant(value=31),
+                                        upper=Constant(value=16)),
+                                    ctx=Load()),
+                                Name(id='y', ctx=Load())],
+                            keywords=[])],
+                    keywords=[]),
+                op=Add(),
+                right=Name(id='y', ctx=Load())),
+            op=Add(),
+            right=Constant(value=64))],
+    ctx=Load())

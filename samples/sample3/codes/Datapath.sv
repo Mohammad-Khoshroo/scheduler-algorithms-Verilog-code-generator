@@ -65,13 +65,13 @@ module datapath(
   // Mux for Operands
   assign logic1_op1 = 
     (logic1_sel1 == 0) ? c :
-    (logic1_sel1 == 1) ? ALU1_reg_0 :
-    (logic1_sel1 == 2) ? logic1_reg_0 :
+    (logic1_sel1 == 1) ? logic1_reg_0 :
+    (logic1_sel1 == 2) ? ALU1_reg_0 :
     32'd0;
   assign logic1_op2 = 
-    (logic1_sel2 == 0) ? a :
+    (logic1_sel2 == 0) ? f :
     (logic1_sel2 == 1) ? g :
-    (logic1_sel2 == 2) ? f :
+    (logic1_sel2 == 2) ? a :
     32'd0;
 
   wire logic1_eq;
@@ -88,8 +88,8 @@ module datapath(
   wire [31:0] mult1_out, mult1_op1, mult1_op2;
   // Mux for Operands
   assign mult1_op1 = 
-    (mult1_sel1 == 0) ? c :
-    (mult1_sel1 == 1) ? a :
+    (mult1_sel1 == 0) ? a :
+    (mult1_sel1 == 1) ? c :
     32'd0;
   assign mult1_op2 = 
     (mult1_sel2 == 0) ? b :

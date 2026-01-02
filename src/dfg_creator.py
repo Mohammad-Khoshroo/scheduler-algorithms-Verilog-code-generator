@@ -2,11 +2,13 @@ import ast
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
-OP_TYPES = ["ALU", "mult", "shift", "logic", "pow"]
+OP_TYPES = ["ROM-LUT", "MUX", "ALU", "mult", "shift", "logic", "pow", "div"]
 
 op_map = {
+    ast.Slice:"MUX",
+    ast.Call: ["abs","min","max"], 
     ast.Add: "ALU", ast.Sub: "ALU",
-    ast.Mult: "mult", ast.Div: "mult", ast.FloorDiv: "mult", ast.Mod: "mult",
+    ast.Mult: "mult", ast.Div: "div", ast.FloorDiv: "div", ast.Mod: "div",
     ast.Pow: "pow",
     ast.LShift: "shift", ast.RShift: "shift",
     ast.BitAnd: "logic", ast.BitOr: "logic", ast.BitXor: "logic",
@@ -84,12 +86,12 @@ class OperatorNode(BaseNode):
         return f"{self.op_type} ['{left_name}', '{right_name}'] (depth={self.depth})"
   
 def resource_allocator(node : OperatorNode) -> str:
-    return "mult" if (node.op_type == "mult") else node.op_type
+    return  node.op_type
     
 class GraphBuilder:
     def __init__(self):
         self.all_nodes = []
-        
+        ت
     def build(self, tree):
 
         visited_identifiers = dict()

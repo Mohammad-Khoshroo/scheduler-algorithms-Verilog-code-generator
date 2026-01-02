@@ -1,11 +1,11 @@
 {
     "2": {
-        "clk_cycle": 2,
+        "clk_cycle": 1,
         "resource_type": "mult",
         "resource_num": 1
     },
     "5": {
-        "clk_cycle": 1,
+        "clk_cycle": 2,
         "resource_type": "mult",
         "resource_num": 1
     },

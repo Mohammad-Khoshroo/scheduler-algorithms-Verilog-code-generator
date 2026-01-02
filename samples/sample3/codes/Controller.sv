@@ -1,3 +1,6 @@
+`ifndef FSM
+`define FSM
+
 module Controller (
   input  wire clk, rst, start,
   output reg  done,
@@ -80,21 +83,21 @@ module Controller (
         done = 0;
       end
       CYCLE1: begin
-        mult1_op = 1;
+        mult1_op = 0;
         mult1_sel1 = 0;
-        mult1_sel2 = 1;
+        mult1_sel2 = 0;
         logic1_op = 0;
         logic1_sel1 = 0;
-        logic1_sel2 = 2;
+        logic1_sel2 = 0;
         logic1_reg0_en = 1;
         mult1_reg0_en = 1;
       end
       CYCLE2: begin
-        mult1_op = 0;
+        mult1_op = 1;
         mult1_sel1 = 1;
-        mult1_sel2 = 0;
+        mult1_sel2 = 1;
         logic1_op = 1;
-        logic1_sel1 = 2;
+        logic1_sel1 = 1;
         logic1_sel2 = 1;
         logic1_reg0_en = 1;
         mult1_reg1_en = 1;
@@ -111,8 +114,8 @@ module Controller (
       end
       CYCLE5: begin
         logic1_op = 2;
-        logic1_sel1 = 1;
-        logic1_sel2 = 0;
+        logic1_sel1 = 2;
+        logic1_sel2 = 2;
       end
       DONE: begin
         done = 1;
@@ -121,3 +124,5 @@ module Controller (
   end
 
 endmodule
+
+`endif // FSM
