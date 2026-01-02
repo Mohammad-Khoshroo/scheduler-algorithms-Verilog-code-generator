@@ -208,6 +208,107 @@ def visualize_graph(root, version=1):
     return dot
 
 
+def visualize_dfg(all_nodes, output_format='png'):
+    dot = graphviz.Digraph(comment="Data Flow Graph")
+    dot.attr(dpi="300", rankdir="TB", size="8,8", splines="true")
+    dot.format = output_format
+
+    for node in all_nodes:
+        node_id = str(node.id)
+        
+        label = node.name
+        shape = "ellipse"
+        style = "filled"
+        fillcolor = "white"
+        fontsize = "14"
+        width = "0.75"
+        height = "0.5"
+
+        if isinstance(node, IdentifierNode):
+            fillcolor = "lightblue"
+            if "rom" in node.name.lower():
+                label = f"ROM-LUT({node.name.replace('rom', '').strip('_')})"
+                fillcolor = "lightgreen"
+            elif node.value is not None:
+                label = f"const= {node.value}"
+            else:
+                label = node.name
+        
+        elif isinstance(node, OutputNode):
+            fillcolor = "lightgray"
+           
+        elif isinstance(node, OperatorNode):
+        
+            label = f"{node.op_type}({node.name})"
+        
+            if node.op_type == "wiring":
+                shape = "point"
+                width = "0.1"
+                height = "0.1"
+                label = "const-index"
+                fillcolor = "#666666"
+            
+            elif node.op_type == "MUX":
+                if node.name == "?:": 
+                    label = "MUX (?:)"
+                    shape = "diamond"
+                else: 
+                    label = "MUX(Index[])"
+                    fillcolor = "#fff2cc"
+
+            elif node.op_type in ["min", "max"]:
+                fillcolor = "#ffe6cc"
+                label = node.op_type.upper()
+            
+            elif node.name == "abs":
+                label = f"{node.op_type}(| Abs |)"
+                fillcolor = "#dae8fc"
+                    
+        dot.node(node_id, label, shape=shape, style=style, fillcolor=fillcolor, 
+                 fontsize=fontsize, width=width, height=height)
+
+        if isinstance(node, (OperatorNode, OutputNode)):
+            for i, operand in enumerate(node.operands):
+                if operand is None: continue
+                
+                src_id = str(operand.id)
+                edge_label = ""
+                edge_color = "black"
+                arrow_head = "normal"
+                edge_style = "solid"
+                minlen = "1"
+
+                if isinstance(node, OperatorNode):
+                    if node.op_type == "MUX":
+                        if node.name == "?:":
+                            if i == 0: 
+                                edge_label = "select"
+                                edge_color = "blue"
+                                edge_style = "dashed"
+                            elif i == 1: edge_label = "true"
+                            elif i == 2: edge_label = "false"
+                        else:
+                            if i == 1: edge_label = "select(idx)"
+                            else: edge_label = ""
+
+                    elif node.name == "concat":
+                        edge_label = f"part_{i}"
+
+                    elif hasattr(node, 'op') and isinstance(node.op, (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
+                        if i == 0: edge_label = "L"
+                        else: edge_label = f"R{i-1}" if i > 1 else "R"
+
+                if isinstance(operand, OperatorNode) and operand.op_type == "wiring":
+                    minlen = "2"
+                    edge_color = "#555555"
+                    arrow_head = "none"
+
+                dot.edge(src_id, node_id, label=edge_label, 
+                         color=edge_color, style=edge_style, 
+                         fontsize="10", arrowhead=arrow_head, minlen=minlen)
+
+    return dot
+
 def visualize_scheduled_graph(
     root_id, schedule_info: List[ScheduledNodeInfo], version=1
 ):

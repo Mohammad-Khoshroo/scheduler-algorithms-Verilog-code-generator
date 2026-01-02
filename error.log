@@ -1,12 +1,12 @@
 Traceback (most recent call last):
-  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 134, in <module>
+  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 139, in <module>
     main()
-  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 129, in main
+  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 134, in main
     run_test(folder_path=sys.argv[1])
-  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 121, in run_test
+  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 126, in run_test
     schedule_info = schedule_dfg(dfg_root, algorithm=data["Algorithm"], config=data["Config"], folder_path=folder_path)
                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 83, in schedule_dfg
+  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 88, in schedule_dfg
     dotv1 = visualize_scheduled_graph(root_id=dfg_root.id, schedule_info=schedule_info, version = 1)
                                               ^^^^^^^^^^^
-AttributeError: 'NoneType' object has no attribute 'id'
+AttributeError: 'Digraph' object has no attribute 'id'
