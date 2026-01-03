@@ -1,0 +1,12 @@
+{
+  "Expression": "((i1 - i2) / ((i2 + i3) - (i3 | i1))) + ((i3 / i2) + (i1 - (i2 & i3)))",
+  "Algorithm": "MinResourceLatencyConstrained",
+  "Config": {
+    "MaxTime": 6,
+    "Resources": {
+      "ALU": 1,
+      "mult": 1,
+      "logic": 1
+    }
+  }
+}

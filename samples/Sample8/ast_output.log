@@ -1,0 +1,31 @@
+BinOp(
+    left=BinOp(
+        left=BinOp(
+            left=Name(id='i1', ctx=Load()),
+            op=Sub(),
+            right=Name(id='i2', ctx=Load())),
+        op=Div(),
+        right=BinOp(
+            left=BinOp(
+                left=Name(id='i2', ctx=Load()),
+                op=Add(),
+                right=Name(id='i3', ctx=Load())),
+            op=Sub(),
+            right=BinOp(
+                left=Name(id='i3', ctx=Load()),
+                op=BitOr(),
+                right=Name(id='i1', ctx=Load())))),
+    op=Add(),
+    right=BinOp(
+        left=BinOp(
+            left=Name(id='i3', ctx=Load()),
+            op=Div(),
+            right=Name(id='i2', ctx=Load())),
+        op=Add(),
+        right=BinOp(
+            left=Name(id='i1', ctx=Load()),
+            op=Sub(),
+            right=BinOp(
+                left=Name(id='i2', ctx=Load()),
+                op=BitAnd(),
+                right=Name(id='i3', ctx=Load())))))

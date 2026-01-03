@@ -1,0 +1,162 @@
+{
+    "2": {
+        "clk_cycle": 1,
+        "resource_type": "wiring",
+        "resource_num": -1
+    },
+    "4": {
+        "clk_cycle": 2,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "6": {
+        "clk_cycle": 1,
+        "resource_type": "mult",
+        "resource_num": 0
+    },
+    "8": {
+        "clk_cycle": 1,
+        "resource_type": "logic",
+        "resource_num": 0
+    },
+    "9": {
+        "clk_cycle": 1,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "10": {
+        "clk_cycle": 3,
+        "resource_type": "div",
+        "resource_num": 0
+    },
+    "11": {
+        "clk_cycle": 1,
+        "resource_type": "div",
+        "resource_num": 0
+    },
+    "12": {
+        "clk_cycle": 1,
+        "resource_type": "logic",
+        "resource_num": 1
+    },
+    "13": {
+        "clk_cycle": 3,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "14": {
+        "clk_cycle": 5,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "15": {
+        "clk_cycle": 8,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "18": {
+        "clk_cycle": 4,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "20": {
+        "clk_cycle": 6,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "23": {
+        "clk_cycle": 1,
+        "resource_type": "mult",
+        "resource_num": -1
+    },
+    "24": {
+        "clk_cycle": 1,
+        "resource_type": "mult",
+        "resource_num": 1
+    },
+    "26": {
+        "clk_cycle": 6,
+        "resource_type": "MUX",
+        "resource_num": -1
+    },
+    "27": {
+        "clk_cycle": 1,
+        "resource_type": "MUX",
+        "resource_num": -1
+    },
+    "31": {
+        "clk_cycle": 1,
+        "resource_type": "wiring",
+        "resource_num": -1
+    },
+    "32": {
+        "clk_cycle": 1,
+        "resource_type": "mult",
+        "resource_num": 2
+    },
+    "35": {
+        "clk_cycle": 1,
+        "resource_type": "wiring",
+        "resource_num": -1
+    },
+    "36": {
+        "clk_cycle": 9,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "38": {
+        "clk_cycle": 1,
+        "resource_type": "shift",
+        "resource_num": -1
+    },
+    "39": {
+        "clk_cycle": 2,
+        "resource_type": "logic",
+        "resource_num": 0
+    },
+    "40": {
+        "clk_cycle": 1,
+        "resource_type": "MUX",
+        "resource_num": -1
+    },
+    "42": {
+        "clk_cycle": 1,
+        "resource_type": "min",
+        "resource_num": 0
+    },
+    "43": {
+        "clk_cycle": 2,
+        "resource_type": "div",
+        "resource_num": 0
+    },
+    "46": {
+        "clk_cycle": 1,
+        "resource_type": "wiring",
+        "resource_num": -1
+    },
+    "47": {
+        "clk_cycle": 1,
+        "resource_type": "wiring",
+        "resource_num": -1
+    },
+    "48": {
+        "clk_cycle": 1,
+        "resource_type": "logic",
+        "resource_num": 2
+    },
+    "49": {
+        "clk_cycle": 7,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "51": {
+        "clk_cycle": 10,
+        "resource_type": "ALU",
+        "resource_num": 0
+    },
+    "53": {
+        "clk_cycle": 1,
+        "resource_type": "shift",
+        "resource_num": 0
+    }
+}

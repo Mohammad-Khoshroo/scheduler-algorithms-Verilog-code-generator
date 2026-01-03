@@ -245,13 +245,12 @@ def visualize_dfg(all_nodes, output_format='png'):
                 shape = "point"
                 width = "0.1"
                 height = "0.1"
-                label = "const-index"
                 fillcolor = "#666666"
+                label = "const-index"
             
             elif node.op_type == "MUX":
                 if node.name == "?:": 
                     label = "MUX (?:)"
-                    shape = "diamond"
                 else: 
                     label = "MUX(Index[])"
                     fillcolor = "#fff2cc"
@@ -283,12 +282,14 @@ def visualize_dfg(all_nodes, output_format='png'):
                         if node.name == "?:":
                             if i == 0: 
                                 edge_label = "select"
-                                edge_color = "blue"
+                                edge_color = "black"
                                 edge_style = "dashed"
                             elif i == 1: edge_label = "true"
                             elif i == 2: edge_label = "false"
                         else:
-                            if i == 1: edge_label = "select(idx)"
+                            if i == 1: 
+                                edge_label = "select(idx)"
+                                edge_style = "dashed"
                             else: edge_label = ""
 
                     elif node.name == "concat":
@@ -309,9 +310,7 @@ def visualize_dfg(all_nodes, output_format='png'):
 
     return dot
 
-def visualize_scheduled_graph(
-    root_id, schedule_info: List[ScheduledNodeInfo], version=1
-):
+def visualize_scheduled_graph(roots, schedule_info: List[ScheduledNodeInfo], version=1):
 
     def find_node_by_id(id) -> ScheduledNodeInfo:
         for sched_node in schedule_info:
@@ -320,70 +319,147 @@ def visualize_scheduled_graph(
         return None
 
     dot = graphviz.Digraph(comment="Scheduled Graph")
-    dot.attr(rankdir="TB", size="8,8")
+    dot.attr(dpi="600", rankdir="TB", size="8,8", splines="true")
 
     node_counter = 0
     visited_identifiers = dict()
     identifier_nodes = []
 
     def add_node_and_edges(
-        node_sched: ScheduledNodeInfo, node: BaseNode, parent_id=None
+        node_sched: ScheduledNodeInfo, node: BaseNode, parent_id=None, edge_attrs=None
     ):
         nonlocal node_counter
         nonlocal visited_identifiers
         nonlocal identifier_nodes
+
+        # ==================== FIX: BYPASS CONST_SLICE ====================
+        if isinstance(node, OperatorNode) and node.name == "const_slice":
+            indices = []
+            for op in node.operands[1:]:
+                if isinstance(op, IdentifierNode) and op.value is not None:
+                    indices.append(str(op.value))
+            slice_label = f"[{':'.join(indices)}]" if indices else ""
+
+            new_edge_attrs = edge_attrs.copy() if edge_attrs else {}
+            current_label = new_edge_attrs.get("label", "")
+            new_edge_attrs["label"] = f"{current_label}\n{slice_label}".strip()
+            new_edge_attrs["fontsize"] = "10"
+
+            if len(node.operands) > 0 and node.operands[0] is not None:
+                child_node = node.operands[0]
+                child_sched = find_node_by_id(child_node.id)
+                add_node_and_edges(node_sched=child_sched, node=child_node, parent_id=parent_id, edge_attrs=new_edge_attrs)
+            return
+        # =================================================================
+
         cur_node_id = str(node_counter)
         node_counter += 1
 
-        if node_sched is None:
-            if node.name.isdigit():
-                label = f"const={node.name}"
+        # ==================== STYLE ====================
+        label = node.name
+        shape = "ellipse"
+        style = "filled"
+        fillcolor = "white"
+        fontsize = "14"
+        width = "0.75"
+        height = "0.5"
+
+        if isinstance(node, IdentifierNode):
+            fillcolor = "lightblue"
+            if "rom" in node.name.lower():
+                label = f"ROM-LUT({node.name.replace('rom', '').strip('_')})"
+                fillcolor = "lightgreen"
+            elif node.value is not None:
+                label = f"const= {node.value}"
             else:
                 label = node.name
-        else:
-            if isinstance(node_sched.node, OperatorNode):
-                label = (
-                    f"{node.name}\ntime_cycle: {node_sched.scheduled_time}\n"
-                    f"resource: {node_sched.node.op_type} {node_sched.resource_num}"
-                )
-            elif isinstance(node_sched.node, IdentifierNode):
-                label = node_sched.node.name
-            else:
-                label = type(node).__name__
+        
+        elif isinstance(node, OutputNode):
+            fillcolor = "lightgray"
+            
+        elif isinstance(node, OperatorNode):
+            label = f"{node.op_type}({node.name})"
+            
+            if node.op_type == "wiring":
+                shape = "point"
+                label = ""
+                width = "0.1"
+                height = "0.1"
+                fillcolor = "#666666"
+                
+            elif node.op_type == "MUX":
+                if node.name == "?:": label = "MUX (?:)"
+                else: label = "MUX(Index[])"; fillcolor = "#fff2cc"
+            elif node.op_type in ["min", "max"]:
+                fillcolor = "#ffe6cc"; label = node.op_type.upper()
+            elif node.name == "abs":
+                label = f"{node.op_type}(| Abs |)"; fillcolor = "#dae8fc"
 
+        if node_sched is not None and not isinstance(node, IdentifierNode):
+            should_append = False
+            if isinstance(node, OutputNode): should_append = True
+            elif isinstance(node, OperatorNode) and node.op_type != "wiring": should_append = True
+            
+            if should_append:
+                label += f"\ncyc: {node_sched.scheduled_time}\nres: {node_sched.resource}"
+
+        # ==================== DRAW NODE ====================
+        is_drawn = False
         if version == 2:
-            if not (
-                label.startswith("const=")
-                or label.lower().startswith("alu")
-                or label.lower().startswith("mult")
-                or label.lower().startswith("shift")
-                or label.lower().startswith("logic")
-                or label.lower().startswith("unary")
-                or label.lower().startswith("cmp")
-            ):
-                if label in visited_identifiers:
-                    cur_node_id = visited_identifiers[label]
+            should_share = isinstance(node, IdentifierNode) or (isinstance(node, OperatorNode) and node.op_type != "wiring")
+            if should_share:
+                unique_key = f"{node.id}" 
+                if unique_key in visited_identifiers:
+                    cur_node_id = visited_identifiers[unique_key]
+                    if parent_id is not None:
+                        ea = edge_attrs if edge_attrs else {}
+                        dot.edge(cur_node_id, parent_id, **ea)
+                    return
                 else:
-                    visited_identifiers[label] = cur_node_id
-                    dot.node(cur_node_id, label)
-            else:
-                dot.node(cur_node_id, label)
-        else:
-            dot.node(cur_node_id, label)
-
+                    visited_identifiers[unique_key] = cur_node_id
+                    if isinstance(node, IdentifierNode): identifier_nodes.append(cur_node_id)
+                    dot.node(cur_node_id, label, shape=shape, style=style, fillcolor=fillcolor, fontsize=fontsize, width=width, height=height)
+                    is_drawn = True
+        
+        if not is_drawn:
+            dot.node(cur_node_id, label, shape=shape, style=style, fillcolor=fillcolor, fontsize=fontsize, width=width, height=height)
 
         if parent_id is not None:
-            dot.edge(cur_node_id, parent_id)
+            ea = edge_attrs if edge_attrs else {}
+            dot.edge(cur_node_id, parent_id, **ea)
 
-        if node_sched is not None and isinstance(node_sched.node, OperatorNode):
-            for child_node in node_sched.node.operands:
+        # ==================== RECURSION ====================
+        if isinstance(node, (OperatorNode, OutputNode)):
+            for i, child_node in enumerate(node.operands):
+                if child_node is None: continue
+
                 child_sched = find_node_by_id(child_node.id)
-                add_node_and_edges(
-                    node_sched=child_sched, node=child_node, parent_id=cur_node_id
-                )
+                next_edge_attrs = {"color": "black", "style": "solid", "label": "", "minlen": "1", "arrowhead": "normal"}
+                
+                if isinstance(node, OperatorNode):
+                    if node.op_type == "MUX":
+                        if node.name == "?:":
+                            if i == 0: next_edge_attrs.update({"label": "select", "style": "dashed"})
+                            elif i == 1: next_edge_attrs["label"] = "true"
+                            elif i == 2: next_edge_attrs["label"] = "false"
+                        else:
+                            if i == 1: next_edge_attrs.update({"label": "select(idx)", "style": "dashed"})
+                    
+                    elif node.name == "concat":
+                        next_edge_attrs["label"] = f"part_{i}"
+                    
+                    elif hasattr(node, 'op') and isinstance(node.op, (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
+                        if i == 0: next_edge_attrs["label"] = "L"
+                        else: next_edge_attrs["label"] = f"R{i-1}" if i > 1 else "R"
 
-    root_sched = find_node_by_id(root_id)
-    add_node_and_edges(node_sched=root_sched, node=root_sched.node)
+                if isinstance(child_node, OperatorNode) and child_node.op_type == "wiring" and child_node.name != "const_slice":
+                    next_edge_attrs["minlen"] = "2"; next_edge_attrs["color"] = "#555555"; next_edge_attrs["arrowhead"] = "none"
+
+                add_node_and_edges(node_sched=child_sched, node=child_node, parent_id=cur_node_id, edge_attrs=next_edge_attrs)
+
+    for root in roots:
+        root_sched = find_node_by_id(root.id)
+        add_node_and_edges(node_sched=root_sched, node=root)
 
     if version == 2 and identifier_nodes:
         with dot.subgraph() as s:
@@ -393,7 +469,8 @@ def visualize_scheduled_graph(
 
     return dot
 
-def visualize_scheduled_graph_ranked(root_id, schedule_info: list, version=1):
+def visualize_scheduled_graph_ranked(roots, schedule_info, version=1):
+    
     def find_node_by_id(id):
         for sched_node in schedule_info:
             if sched_node.node.id == id:
@@ -401,125 +478,169 @@ def visualize_scheduled_graph_ranked(root_id, schedule_info: list, version=1):
         return None
 
     dot = graphviz.Digraph(comment="Scheduled Graph Ranked")
-    dot.attr(rankdir="TB")
-    dot.attr(newrank="true")
+    dot.attr(dpi="600", rankdir="TB", size="8,8", splines="true", newrank="true")
     
     node_counter = 0
     visited_identifiers = dict()
     layers = defaultdict(list)
     edges = []
-    node_labels = {}
+    node_attrs = {} 
 
-    def add_node_and_edges(node_sched, node, parent_id=None):
-        nonlocal node_counter
-        nonlocal visited_identifiers
-        nonlocal layers
-        nonlocal edges
-        nonlocal node_labels
+    def add_node_and_edges(node_sched, node, parent_id=None, edge_attrs=None):
+        nonlocal node_counter, visited_identifiers, layers, edges, node_attrs
 
-        label = ""
-        cycle_key = None 
+        if isinstance(node, OperatorNode) and node.name == "const_slice":
+            indices = []
+            for op in node.operands[1:]:
+                if isinstance(op, IdentifierNode) and op.value is not None:
+                    indices.append(str(op.value))
+            slice_label = f"[{':'.join(indices)}]" if indices else ""
 
-        if node_sched is None:
-            cycle_key = "source"
-            if hasattr(node, 'name') and node.name.isdigit():
-                label = f"const={node.name}"
-            elif hasattr(node, 'name'):
-                label = node.name
-            else:
-                label = type(node).__name__
-        else:
-            cycle_key = node_sched.scheduled_time
-            if hasattr(node, 'op_type'):
-                label = (
-                    f"{node.name}\ntime_cycle: {node_sched.scheduled_time}\n"
-                    f"resource: {node_sched.node.op_type} {node_sched.resource_num}"
-                )
-            elif hasattr(node, 'name'):
-                label = node.node.name
-            else:
-                label = type(node).__name__
+            new_edge_attrs = edge_attrs.copy() if edge_attrs else {}
+            current_label = new_edge_attrs.get("label", "")
+            new_edge_attrs["label"] = f"{current_label}\n{slice_label}".strip()
+            new_edge_attrs["fontsize"] = "10"
+
+            if len(node.operands) > 0 and node.operands[0] is not None:
+                child_node = node.operands[0]
+                child_sched = find_node_by_id(child_node.id)
+                add_node_and_edges(node_sched=child_sched, node=child_node, parent_id=parent_id, edge_attrs=new_edge_attrs)
+            return
+        # ==============================================================================
 
         cur_node_id = str(node_counter)
-        is_existing_node = False
+        node_counter += 1
 
-        if version == 2:
-            should_merge = True
-            if (
-                label.startswith("const=")
-                or label.startswith("ALU")
-                or label.startswith("mult")
-                or label.startswith("div")
-                or label.startswith("shift")
-                or label.startswith("logic")
-            ):
-                should_merge = False
+        # ==================== 2. STYLE & LABEL ====================
+        label = node.name
+        shape = "ellipse"
+        style = "filled"
+        fillcolor = "white"
+        fontsize = "12"
+        width = "0.75"
+        height = "0.5"
 
-            if should_merge:
-                if label in visited_identifiers:
-                    cur_node_id = visited_identifiers[label]
-                    is_existing_node = True
-                else:
-                    cur_node_id = str(node_counter)
-                    node_counter += 1
-                    visited_identifiers[label] = cur_node_id
+        if isinstance(node, IdentifierNode):
+            fillcolor = "lightblue"
+            if "rom" in node.name.lower():
+                label = f"ROM-LUT({node.name.replace('rom', '').strip('_')})"
+                fillcolor = "lightgreen"
+            elif node.value is not None:
+                label = f"const= {node.value}"
             else:
-                cur_node_id = str(node_counter)
-                node_counter += 1
-        else:
-            cur_node_id = str(node_counter)
-            node_counter += 1
+                label = node.name
+        
+        elif isinstance(node, OutputNode):
+            fillcolor = "lightgray"
+            
+        elif isinstance(node, OperatorNode):
+            label = f"{node.op_type}({node.name})"
+            
+            if node.op_type == "wiring":
+                shape = "point"; label = ""
+                width = "0.1"
+                height = "0.1"
+                fillcolor = "#666666"
+                
+            elif node.op_type == "MUX":
+                if node.name == "?:": label = "MUX (?:)"
+                else: label = "MUX(Index[])"; fillcolor = "#fff2cc"
+            elif node.op_type in ["min", "max"]:
+                fillcolor = "#ffe6cc"; label = node.op_type.upper()
+            elif node.name == "abs":
+                label = f"{node.op_type}(| Abs |)"; fillcolor = "#dae8fc"
 
-        if not is_existing_node:
-            node_labels[cur_node_id] = label
-            layers[cycle_key].append(cur_node_id)
+        cycle_key = "source"
+        if node_sched is not None and not isinstance(node, IdentifierNode):
+            should_append = isinstance(node, OutputNode) or (isinstance(node, OperatorNode) and node.op_type != "wiring")
+            if should_append:
+                label += f"\ncyc: {node_sched.scheduled_time}\nres: {node_sched.resource}"
+                cycle_key = node_sched.scheduled_time
+
+        # ==================== 3. NODE CREATION / CACHING ====================
+        final_node_id = cur_node_id
+        is_existing = False
+        if version == 2:
+            should_share = isinstance(node, IdentifierNode) or (isinstance(node, OperatorNode) and node.op_type != "wiring")
+            if should_share:
+                unique_key = f"{node.id}"
+                if unique_key in visited_identifiers:
+                    final_node_id = visited_identifiers[unique_key]
+                    is_existing = True
+                else:
+                    visited_identifiers[unique_key] = final_node_id
+
+        if not is_existing:
+            node_attrs[final_node_id] = {
+                "label": label, "shape": shape, "style": style, 
+                "fillcolor": fillcolor, "fontsize": fontsize, 
+                "width": width, "height": height
+            }
+            layers[cycle_key].append(final_node_id)
         
         if parent_id is not None:
-            edges.append((cur_node_id, parent_id))
+            ea = edge_attrs if edge_attrs else {}
+            edges.append((final_node_id, parent_id, ea))
 
-        if node_sched is not None and hasattr(node, 'operands'):
-            for child_node in node.operands:
+        if is_existing: return
+
+        # ==================== 4. RECURSION ====================
+        if isinstance(node, (OperatorNode, OutputNode)):
+            for i, child_node in enumerate(node.operands):
+                if child_node is None: continue
+                
                 child_sched = find_node_by_id(child_node.id)
-                add_node_and_edges(
-                    node_sched=child_sched, node=child_node, parent_id=cur_node_id
-                )
+                next_edge_attrs = {"color": "black", "style": "solid", "label": "", "minlen": "1", "arrowhead": "normal"}
+                
+                if isinstance(node, OperatorNode):
+                    if node.op_type == "MUX":
+                        if node.name == "?:":
+                            if i == 0: next_edge_attrs.update({"label": "select", "style": "dashed"})
+                            elif i == 1: next_edge_attrs["label"] = "true"
+                            elif i == 2: next_edge_attrs["label"] = "false"
+                        else:
+                            if i == 1: next_edge_attrs.update({"label": "select(idx)", "style": "dashed"})
+                    
+                    elif node.name == "concat":
+                        next_edge_attrs["label"] = f"part_{i}"
+                    
+                    elif hasattr(node, 'op') and isinstance(node.op, (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
+                         if i == 0: next_edge_attrs["label"] = "L"
+                         else: next_edge_attrs["label"] = f"R{i-1}" if i > 1 else "R"
 
-    root_sched = find_node_by_id(root_id)
-    if root_sched:
-        add_node_and_edges(node_sched=root_sched, node=root_sched.node)
+                if isinstance(child_node, OperatorNode) and child_node.op_type == "wiring" and child_node.name != "const_slice":
+                    next_edge_attrs["minlen"] = "2"; next_edge_attrs["color"] = "#555555"; next_edge_attrs["arrowhead"] = "none"
+
+                add_node_and_edges(node_sched=child_sched, node=child_node, parent_id=final_node_id, edge_attrs=next_edge_attrs)
+
+    for root in roots:
+        root_sched = find_node_by_id(root.id)
+        add_node_and_edges(node_sched=root_sched, node=root)
     
+    # ==================== 5. DRAW LAYERS (Ranked Layout) ====================
     if "source" in layers:
         with dot.subgraph(name="cluster_inputs") as s:
-            s.attr(style='invis')
-            s.attr(rank='source')
-            for nid in layers["source"]:
-                if nid in node_labels:
-                    s.node(nid, label=node_labels[nid])
+            s.attr(style='invis'); s.attr(rank='source')
+            for nid in layers["source"]: s.node(nid, **node_attrs[nid])
 
     sorted_cycles = sorted([k for k in layers.keys() if k != "source"])
-    
     for cycle in sorted_cycles:
         with dot.subgraph(name=f"cycle_{cycle}") as s:
             s.attr(rank='same')
-            for nid in layers[cycle]:
-                if nid in node_labels:
-                    s.node(nid, label=node_labels[nid])
+            for nid in layers[cycle]: s.node(nid, **node_attrs[nid])
 
-    if "source" in layers and len(layers["source"]) > 0 and len(sorted_cycles) > 0:
-         src_node = layers["source"][0]
-         dst_node = layers[sorted_cycles[0]][0]
+    if "source" in layers and layers["source"] and sorted_cycles:
+         src_node = layers["source"][0]; dst_node = layers[sorted_cycles[0]][0]
          dot.edge(src_node, dst_node, style="invis", weight="10")
 
     for i in range(len(sorted_cycles) - 1):
-        c1 = sorted_cycles[i]
-        c2 = sorted_cycles[i+1]
+        c1 = sorted_cycles[i]; c2 = sorted_cycles[i+1]
         if layers[c1] and layers[c2]:
-            node_a = layers[c1][0]
-            node_b = layers[c2][0]
+            node_a = layers[c1][0]; node_b = layers[c2][0]
             dot.edge(node_a, node_b, style="invis", weight="10")
 
-    for src, dst in edges:
-        dot.edge(src, dst)
+    for src, dst, attrs in edges:
+        dot.edge(src, dst, **attrs)
 
     return dot
 

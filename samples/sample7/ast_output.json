@@ -207,11 +207,9 @@
                         "_type": "Mult"
                     },
                     "right": {
-                        "_type": "Name",
-                        "id": "b",
-                        "ctx": {
-                            "_type": "Load"
-                        }
+                        "_type": "Constant",
+                        "value": 4,
+                        "kind": null
                     }
                 },
                 "op": {
@@ -492,6 +490,26 @@
                 "_type": "Constant",
                 "value": 64,
                 "kind": null
+            }
+        },
+        {
+            "_type": "BinOp",
+            "left": {
+                "_type": "Name",
+                "id": "b",
+                "ctx": {
+                    "_type": "Load"
+                }
+            },
+            "op": {
+                "_type": "LShift"
+            },
+            "right": {
+                "_type": "Name",
+                "id": "w",
+                "ctx": {
+                    "_type": "Load"
+                }
             }
         }
     ],

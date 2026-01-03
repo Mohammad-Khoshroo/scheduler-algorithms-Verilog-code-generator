@@ -50,7 +50,7 @@ Tuple(
                 left=BinOp(
                     left=Name(id='a', ctx=Load()),
                     op=Mult(),
-                    right=Name(id='b', ctx=Load())),
+                    right=Constant(value=4)),
                 op=Mult(),
                 right=Name(id='c', ctx=Load())),
             orelse=Name(id='d', ctx=Load())),
@@ -114,5 +114,9 @@ Tuple(
                 op=Add(),
                 right=Name(id='y', ctx=Load())),
             op=Add(),
-            right=Constant(value=64))],
+            right=Constant(value=64)),
+        BinOp(
+            left=Name(id='b', ctx=Load()),
+            op=LShift(),
+            right=Name(id='w', ctx=Load()))],
     ctx=Load())

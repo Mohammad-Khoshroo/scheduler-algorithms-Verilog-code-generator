@@ -2,7 +2,21 @@ import ast
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
-OP_TYPES = ["ROM-LUT", "MUX", "ALU", "mult", "shift", "logic", "pow", "div","min", "max", "wiring"]
+OP_TYPES = ["MUX", "ALU", "mult", "shift", "logic", "pow", "div","min", "max", "wiring"]
+
+OP_CYCLES ={
+
+    "MUX": 1,
+    "ALU": 1,
+    "mult": 1,
+    "shift": 1,
+    "logic": 1,
+    "pow": 1,
+    "div": 1,
+    "min":1,
+    "max":1,
+    "wiring":0
+}
 
 op_map = {
     ast.IfExp: "MUX",
@@ -59,6 +73,7 @@ class OutputNode(BaseNode):
     def __init__(self, source: BaseNode, name: str, id: int):
         super().__init__(depth=source.depth+1, id=id, name=name)
         self.operands = [source] 
+        self.op_type = "OUTPUT"
 
     def __repr__(self) -> str:
         return f"OUTPUT [{self.name}] <- {self.operands[0].name}"
@@ -96,10 +111,15 @@ class OperatorNode(BaseNode):
         ops_str = ", ".join(ops_names)
         return f"{self.op_type} [{ops_str}] (depth={self.depth})"
   
-def resource_allocator(node: OperatorNode) -> Optional[str]:
-    if node.op_type == "wiring":
-        return None 
-    return node.op_type
+def resource_allocator(node) -> Optional[str]:
+    if isinstance(node, OutputNode) or isinstance(node, IdentifierNode) :
+        return None     
+    if isinstance(node, OperatorNode):
+        if node.op_type == "wiring":
+            return None
+        return node.op_type
+        
+    return None
     
 class GraphBuilder:
     def __init__(self):

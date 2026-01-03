@@ -1,12 +1,18 @@
 Traceback (most recent call last):
-  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 139, in <module>
+  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 150, in <module>
     main()
-  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 134, in main
+  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 145, in main
     run_test(folder_path=sys.argv[1])
-  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 126, in run_test
-    schedule_info = schedule_dfg(dfg_root, algorithm=data["Algorithm"], config=data["Config"], folder_path=folder_path)
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 88, in schedule_dfg
-    dotv1 = visualize_scheduled_graph(root_id=dfg_root.id, schedule_info=schedule_info, version = 1)
-                                              ^^^^^^^^^^^
-AttributeError: 'Digraph' object has no attribute 'id'
+  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/./main.py", line 141, in run_test
+    generate_verilog(folder_path=folder_path, schedule_info=schedule_info)
+  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/src/code_generator.py", line 713, in generate_verilog
+    generator = VerilogGenerator(schedule_info, folder_path)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/src/code_generator.py", line 68, in __init__
+    self._build_registers()
+  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/src/code_generator.py", line 147, in _build_registers
+    self._build_resources_start_duration_table()
+  File "/mnt/d/UT.CE/Term-05/CAD/CA/CA05/scheduler-algorithms-Verilog-code-generator/src/code_generator.py", line 136, in _build_resources_start_duration_table
+    self.rsd_table[lop_info.resource].append((lop_info.scheduled_time,node_info.scheduled_time, lop_info.node.id))
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'wiring'

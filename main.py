@@ -2,7 +2,7 @@ import ast
 import sys
 import json
 from pathlib import Path
-from src.dfg_creator import GraphBuilder
+from src.dfg_creator import GraphBuilder , OperatorNode
 from src.graph_visualizer import expression_to_graph, visualize_graph, visualize_scheduled_graph,visualize_scheduled_graph_ranked , visualize_dfg
 from src.scheduler import MinLatencyScheduler, MinResourceScheduler, ScheduledNodeInfo
 from src.code_generator import generate_verilog
@@ -73,11 +73,17 @@ def build_dfg(expression: str, folder_path : str):
 def schedule_dfg(dfg_roots, algorithm : str, config : dict, folder_path : str) -> list:
     
     if (algorithm == MinResourceAlgorithm):
-        scheduler = MinResourceScheduler(dfg_root=dfg_roots, max_time=config["MaxTime"], numof_resources=None)
-    
-    elif (algorithm == MinlatencyAlgorithm):
-        scheduler = MinLatencyScheduler(dfg_root=dfg_roots, numof_resources=config["Resources"])    
+        if "OperationCycles" in config:
+            scheduler = MinResourceScheduler(dfg_root=dfg_roots, max_time=config["MaxTime"], numof_resources={}, op_cycs=config["OperationCycles"])
+        else:
+            scheduler = MinResourceScheduler(dfg_root=dfg_roots, max_time=config["MaxTime"], numof_resources={})
             
+    elif (algorithm == MinlatencyAlgorithm):
+        if "OperationCycles" in config:
+            scheduler = MinLatencyScheduler(dfg_root=dfg_roots, numof_resources=config["Resources"], op_cycs=config["OperationCycles"])    
+        else:
+            scheduler = MinLatencyScheduler(dfg_root=dfg_roots, numof_resources=config["Resources"])    
+                
     else:
         raise ValueError(f"Unknown scheduling algorithm: {algorithm}")
     
@@ -85,35 +91,40 @@ def schedule_dfg(dfg_roots, algorithm : str, config : dict, folder_path : str) -
     schedule_info = scheduler.get_scheduling_info()
 
     print("schedule Done")
-    dotv1 = visualize_scheduled_graph(root_id=dfg_roots.id, schedule_info=schedule_info, version = 1)
+    
+    dotv1 = visualize_scheduled_graph(roots=dfg_roots, schedule_info=schedule_info, version = 1)
     dotv1.attr(label="", labelloc='t', fontsize='17')  
     dotv1.render(folder_path + "/pics/ScheduledDFG-V1", format='png', view=False, cleanup=True)
     
-    dotv2 = visualize_scheduled_graph(root_id=dfg_roots.id, schedule_info=schedule_info, version = 2)
+    dotv2 = visualize_scheduled_graph(roots=dfg_roots, schedule_info=schedule_info, version = 2)
     dotv2.attr(label="", labelloc='t', fontsize='17')  
     dotv2.render(folder_path + "/pics/ScheduledDFG-V2", format='png', view=False, cleanup=True)
 
     print("Visualize schedule Done")
-    dotv1 = visualize_scheduled_graph_ranked(root_id=dfg_roots.id, schedule_info=schedule_info, version = 1)
+    
+    dotv1 = visualize_scheduled_graph_ranked(roots=dfg_roots, schedule_info=schedule_info, version = 1)
     dotv1.attr(label="", labelloc='t', fontsize='17')  
     dotv1.render(folder_path + "/pics/RankedScheduledDFG-V1", format='png', view=False, cleanup=True)
     
-    dotv2 = visualize_scheduled_graph_ranked(root_id=dfg_roots.id, schedule_info=schedule_info, version = 2)
+    dotv2 = visualize_scheduled_graph_ranked(roots=dfg_roots, schedule_info=schedule_info, version = 2)
     dotv2.attr(label="", labelloc='t', fontsize='17')  
     dotv2.render(folder_path + "/pics/RankedScheduledDFG-V2", format='png', view=False, cleanup=True)
+    
     print("Visualize Rank schedule done")
 
     return schedule_info
+
 
 def save_result(folder_path : str, schedule_info : list[ScheduledNodeInfo]):
     json_output = {}
     with open(folder_path + "/output.json", "w") as file:
         for node_info in schedule_info:
-            json_output[node_info.node.id] = {
-                "clk_cycle": node_info.scheduled_time,
-                "resource_type": node_info.node.op_type,
-                "resource_num": node_info.resource_num
-            }
+            if isinstance(node_info.node, OperatorNode):
+                json_output[node_info.node.id] = {
+                    "clk_cycle": node_info.scheduled_time,
+                    "resource_type": node_info.node.op_type,
+                    "resource_num": node_info.resource_num
+                }
         json.dump(json_output, file, indent=4)
 
 
